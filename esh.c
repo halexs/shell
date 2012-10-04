@@ -7,22 +7,11 @@
 #include <stdio.h>
 #include <readline/readline.h>
 #include <unistd.h>
-
 #include "esh.h"
 
-//function definitions
-static void execute_command_line (struct esh_command_line *command_line);
-static int  esh_commands 		 (char **argv);
-static void remove_job   		 (struct esh_pipeline *pipe);
-
-/*
-* struct to hold a job for the pipe
-*/
-struct job
-{
-	struct list_elem elem;
-	struct esh_pipeline *pipe;
-};
+//static void execute_command_line (struct esh_command_line *command_line);
+//static int  esh_commands(char **argv);
+//static void remove_job(struct esh_pipeline *pipe);
 
 static void
 usage(char *progname)
@@ -84,10 +73,8 @@ int
 main(int ac, char *av[])
 {
     int opt;
-    list_init(&esh_plugin_list);
-
-	//init list to track jobs
-	list_init(&jobs_list);
+    int jid = 0;
+    list_init(&esh_plugin_list);    
 
     /* Process command-line arguments. See getopt(3) */
     while ((opt = getopt(ac, av, "hp:")) > 0) {
@@ -104,80 +91,131 @@ main(int ac, char *av[])
 
     esh_plugin_initialize(&shell);
 
+    /*
+     * TODO: set up signal handlers here
+     */
+
     /* Read/eval loop. */
     for (;;) {
+
+	/*
+	 * TODO: Utilise the functionality given in init_shell for signals and such or we will
+	 * not have control returned to us after a job is run.
+	 */
+	
         /* Do not output a prompt unless shell's stdin is a terminal */
         char * prompt = isatty(0) ? shell.build_prompt() : NULL;
         char * cmdline = shell.readline(prompt);
         free (prompt);
-
+	
         if (cmdline == NULL)  /* User typed EOF */
             break;
-
+	
         struct esh_command_line * cline = shell.parse_command_line(cmdline);
         free (cmdline);
         if (cline == NULL)                  /* Error in command line */
             continue;
-
+	
         if (list_empty(&cline->pipes)) {    /* User hit enter */
             esh_command_line_free(cline);
             continue;
         }
 
-        esh_command_line_print(cline);
+	/*
+	 * This assumes we only have one pipeline (job). Must be accomodated
+	 * in a for-loop for pipelining / I/O redirection support.
+	 */
+
+	struct esh_pipeline *pipeline;
+	pipeline = list_entry(list_begin(&cline->pipes), struct esh_pipeline, elem);
+	//esh_pipeline_print(pipeline);
+
+	printf("Job ID is %d\n", pipeline->jid);
+	
+	struct esh_command *command;
+	command = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
+	//esh_command_print(command);
+
+	int command_type = command_time(command->argv[0]);
+
+	if (command_type == 1)
+	    exit(EXIT_SUCCESS);
+
+	else if (command_type == 2) {
+	    // print out list of jobs
+	}
+
+	else if (command_type == 3) {
+	    // fg
+	}
+
+	else if (command_type == 4) {
+	    // bg
+	}
+
+	else if (command_type == 5) {
+	    // kill jid
+	}
+
+	else if (command_type == 6) {
+	    // stop pid
+	}
+
+	else {
+
+	    ++jid;
+	    
+	    
+	    // fork here
+	}
+
+	
+
+
+	
+	//printf("%s\n", command->argv[0]);
+
+
+
+
+	//esh_command_line_print(cline);
         esh_command_line_free(cline);
     }
     return 0;
+    
 }
 
 /*
-* Checks if the command passed can be handled by the esh shell.
-* If it is not a builtin command, returns 0.
-*/
-static int esh_commands(char **argv)
+ * Checks if the command passed can be handled by the esh shell.
+ * If it is not a builtin command, returns 0.
+ */
+int command_time(char *command)
 {
+    if (!strcmp(command, "exit"))
+	return 1;
 	
-	if(!strcmp(argv[0], "exit"))
-	{
-		exit(0);
-	}
+    else if (!strcmp(command, "jobs"))
+	return 2;
+    
+    else if (!strcmp(command, "fg"))
+	return 3;
 	
-	if(!strcmp(argv[0], "jobs"))
-	{
-		//esh_jobs();		
-		return 1;
-	}
-	
-	if(!strcmp(argv[0], "fg"))
-	{
-		//esh_fg(argv);
-		return 2;
-	}
-	
-	if(!strcmp(argv[0], "bg"))
-	{
-		//esh_bg(argv);
-		return 3;
-	}
-	
-	if(!strcmp(argv[0], "kill"))
-	{
-		//esh_kill(argv);
-		return 4;
-	}
-	
-	if(!strcmp(argv[0], "stop"))
-	{
-		//esh_stop(argv);
-		return 5;
-	}
+    else if (!strcmp(command, "bg"))
+	return 4;
+    
+    else if (!strcmp(command, "kill"))
+	return 5;
 
-	return 0;
+    else if (!strcmp(command, "stop"))
+	return 6;
+	
+    return 0;
 }
+
 
 /*
 * Executes all pipelines included in esh_command_line.
-*/
+
 static void execute_command_line(struct esh_command_line *command_line)
 {
 	struct list_elem * e = list_begin (&command_line->pipes); 
@@ -189,11 +227,11 @@ static void execute_command_line(struct esh_command_line *command_line)
 		//execute the pipeline
 		esh_execute_pipe(pipe);
     }
-}
+    }*/
 
 /*
 * Remove a job from the job list pipeline.
-*/
+
 static void remove_job(struct esh_pipeline *pipeline)
 {
 	struct list_elem *e = list_begin(&jobs_list);
@@ -210,3 +248,4 @@ static void remove_job(struct esh_pipeline *pipeline)
 	}
 	return;
 }
+*/
