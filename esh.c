@@ -70,7 +70,6 @@ static struct list * get_jobs(void)
 static struct esh_pipeline * get_job_from_jid(int jid)
 {
     struct list_elem *e;
-
     for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
 	struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
 	if (job->jid == jid)
@@ -80,13 +79,21 @@ static struct esh_pipeline * get_job_from_jid(int jid)
     return NULL;
 }
 
-/* /\* */
-/*  * Searches the pipeline and return the job corresponding to pgrp */
-/*  *\/ */
-/* static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp) */
-/* { */
-/*     // search pipeline and return job from pgrp */
-/* } */
+/*
+ * Searches the pipeline and return the job corresponding to pgrp
+ * Returns the job, or NULL if not found
+ */
+static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
+{
+    struct list_elem *e;
+    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
+	struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
+	if (job->pgrp == pgrp)
+	    return job;	
+    }
+
+    return NULL;
+}
 
 /* /\* */
 /*  * Searches the commands (processes) and returns the process */
@@ -108,7 +115,7 @@ struct esh_shell shell =
     .parse_command_line = esh_parse_command_line, /* Default parser */
     .get_jobs = get_jobs,
     .get_job_from_jid = get_job_from_jid
-    /* .get_job_from_pgrp = get_job_from_pgrp, */
+    .get_job_from_pgrp = get_job_from_pgrp
     /* .get_cmd_from_pid = get_cmd_from_pid */
 };
 
