@@ -64,7 +64,7 @@ build_prompt_from_plugins(void)
  */
 static struct list * get_jobs(void)
 {
-    // return list of jobs
+    return current_jobs;
 }
 
 /*
@@ -112,7 +112,8 @@ main(int ac, char *av[])
 {
     int opt;
     int jid = 0;
-    list_init(&esh_plugin_list);    
+    list_init(&esh_plugin_list);
+    list_init(&current_jobs);
 
     /* Process command-line arguments. See getopt(3) */
     while ((opt = getopt(ac, av, "hp:")) > 0) {
@@ -174,7 +175,7 @@ main(int ac, char *av[])
 	command = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
 	//esh_command_print(command);
 
-	int command_type = command_time(command->argv[0]);
+	int command_type = process_type(command->argv[0]);
 
 	if (command_type == 1)
 	    exit(EXIT_SUCCESS);
@@ -227,7 +228,7 @@ main(int ac, char *av[])
  * Checks if the command passed can be handled by the esh shell.
  * If it is not a builtin command, returns 0.
  */
-int command_time(char *command)
+int process_type(char *command)
 {
     if (!strcmp(command, "exit"))
 	return 1;

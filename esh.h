@@ -203,5 +203,8 @@ void esh_plugin_initialize(struct esh_shell *shell);
 /* List of loaded plugins */
 extern struct list esh_plugin_list;
 
+/* List of current jobs */
+extern struct list current_jobs;
+
 /* Job Execution Declarations */
-int command_time(char *);
+int process_type(char *);
