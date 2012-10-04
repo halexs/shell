@@ -59,6 +59,40 @@ build_prompt_from_plugins(void)
     return prompt;
 }
 
+/*
+ * Returns the list of current jobs
+ */
+static struct list * get_jobs(void)
+{
+    // return list of jobs
+}
+
+/*
+ * Searches the pipeline and returns the job corresponding to jid
+ */
+static struct esh_pipeline * get_job_from_jid(int jid)
+{
+    // search pipeline and return job with jid
+}
+
+/*
+ * Searches the pipeline and return the job corresponding to pgrp
+ */
+static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
+{
+    // search pipeline and return job from pgrp
+}
+
+/*
+ * Searches the commands (processes) and returns the process
+ * corresponding to pid
+ */
+static struct esh_command * get_cmd_from_pid(pid_t pid)
+{
+    //
+}
+   
+
 /* The shell object plugins use.
  * Some methods are set to defaults.
  */
@@ -66,7 +100,11 @@ struct esh_shell shell =
 {
     .build_prompt = build_prompt_from_plugins,
     .readline = readline,       /* GNU readline(3) */ 
-    .parse_command_line = esh_parse_command_line /* Default parser */
+    .parse_command_line = esh_parse_command_line, /* Default parser */
+    .get_jobs = get_jobs,
+    .get_job_from_jid = get_job_from_jid,
+    .get_job_from_pgrp = get_job_from_pgrp,
+    .get_cmd_from_pid = get_cmd_from_pid
 };
 
 int
