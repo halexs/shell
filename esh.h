@@ -204,7 +204,7 @@ void esh_plugin_initialize(struct esh_shell *shell);
 extern struct list esh_plugin_list;
 
 /* List of current jobs */
-extern struct list current_jobs;
+struct list current_jobs;
 
 /* Job Execution Declarations */
 int process_type(char *);

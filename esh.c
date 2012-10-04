@@ -9,10 +9,6 @@
 #include <unistd.h>
 #include "esh.h"
 
-//static void execute_command_line (struct esh_command_line *command_line);
-//static int  esh_commands(char **argv);
-//static void remove_job(struct esh_pipeline *pipe);
-
 static void
 usage(char *progname)
 {
@@ -69,28 +65,37 @@ static struct list * get_jobs(void)
 
 /*
  * Searches the pipeline and returns the job corresponding to jid
+ * Returns the job, or NULL if not found
  */
 static struct esh_pipeline * get_job_from_jid(int jid)
 {
-    // search pipeline and return job with jid
+    struct list_elem *e;
+
+    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
+	struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
+	if (job->jid == jid)
+	    return job;	
+    }
+
+    return NULL;
 }
 
-/*
- * Searches the pipeline and return the job corresponding to pgrp
- */
-static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
-{
-    // search pipeline and return job from pgrp
-}
+/* /\* */
+/*  * Searches the pipeline and return the job corresponding to pgrp */
+/*  *\/ */
+/* static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp) */
+/* { */
+/*     // search pipeline and return job from pgrp */
+/* } */
 
-/*
- * Searches the commands (processes) and returns the process
- * corresponding to pid
- */
-static struct esh_command * get_cmd_from_pid(pid_t pid)
-{
-    //
-}
+/* /\* */
+/*  * Searches the commands (processes) and returns the process */
+/*  * corresponding to pid */
+/*  *\/ */
+/* static struct esh_command * get_cmd_from_pid(pid_t pid) */
+/* { */
+/*     // */
+/* } */
    
 
 /* The shell object plugins use.
@@ -102,9 +107,9 @@ struct esh_shell shell =
     .readline = readline,       /* GNU readline(3) */ 
     .parse_command_line = esh_parse_command_line, /* Default parser */
     .get_jobs = get_jobs,
-    .get_job_from_jid = get_job_from_jid,
-    .get_job_from_pgrp = get_job_from_pgrp,
-    .get_cmd_from_pid = get_cmd_from_pid
+    .get_job_from_jid = get_job_from_jid
+    /* .get_job_from_pgrp = get_job_from_pgrp, */
+    /* .get_cmd_from_pid = get_cmd_from_pid */
 };
 
 int
@@ -161,15 +166,22 @@ main(int ac, char *av[])
         }
 
 	/*
-	 * This assumes we only have one pipeline (job). Must be accomodated
-	 * in a for-loop for pipelining / I/O redirection support.
+	 * This assumes we only have one command in the pipeline. Must be accomodated
+	 * in a for-loop for pipelining and I/O redirection support.
 	 */
 
 	struct esh_pipeline *pipeline;
 	pipeline = list_entry(list_begin(&cline->pipes), struct esh_pipeline, elem);
 	//esh_pipeline_print(pipeline);
 
-	printf("Job ID is %d\n", pipeline->jid);
+	/*
+	 * TODO: set job ID properly
+	 */
+
+	//	printf("Size of pipeline is %lu\n", list_size(&cline->pipes));
+	//	printf("Size of pipeline commands is %lu\n", list_size(&pipeline->commands));
+
+	//	printf("Job ID is %d\n", pipeline->jid);
 	
 	struct esh_command *command;
 	command = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
