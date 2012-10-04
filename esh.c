@@ -64,7 +64,7 @@ build_prompt_from_plugins(void)
  */
 static struct list * get_jobs(void)
 {
-    return current_jobs;
+    return &current_jobs;
 }
 
 /*
