@@ -97,6 +97,17 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
     return NULL;
 }
 
+static void signal_handler(int signo, siginfo_t *info, void *ctxt)
+{
+
+    // sigint 2 sigtstp 20
+    //if (signo == 2)
+	
+    //    printf("Signal Handler Called");
+    printf("\n");
+}
+    
+
 /* /\* */
 /*  * Searches the commands (processes) and returns the process */
 /*  * corresponding to pid */
@@ -110,6 +121,32 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
 /* The shell object plugins use.
  * Some methods are set to defaults.
  */
+
+/**
+ * Assign ownership of ther terminal to process group
+ * pgrp, restoring its terminal state if provided.
+ *
+ * Before printing a new prompt, the shell should
+ * invoke this function with its own process group
+ * id (obtained on startup via getpgrp()) and a
+ * sane terminal state (obtained on startup via
+ * esh_sys_tty_init()).
+ *
+ * Taken from Dr. Back's Snippet.
+ */
+static void
+give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
+{
+    esh_signal_block(SIGTTOU);
+    int rc = tcsetpgrp(esh_sys_tty_getfd(), pgrp);
+    if (rc == -1)
+	esh_sys_fatal_error("tcsetpgrp: ");
+
+    if (pg_tty_state)
+	esh_sys_tty_restore(pg_tty_state);
+    esh_signal_unblock(SIGTTOU);
+}
+
 struct esh_shell shell =
 {
     .build_prompt = build_prompt_from_plugins,
@@ -143,6 +180,7 @@ main(int ac, char *av[])
     }
 
     esh_plugin_initialize(&shell);
+    struct termios *shell_tty = esh_sys_tty_init();
 
     /*
      * TODO: set up signal handlers here
@@ -150,6 +188,8 @@ main(int ac, char *av[])
 
     /* Read/eval loop. */
     for (;;) {
+
+	give_terminal_to(getpgrp(), shell_tty);
 
 	/*
 	 * TODO: Utilise the functionality given in init_shell for signals and such or we will
@@ -240,15 +280,19 @@ main(int ac, char *av[])
 
 	else {
 	    
-	    ++jid;
 	    pid_t pid;
 
+	    esh_signal_sethandler(SIGINT, signal_handler);  /* Ctrl-C */
+	    esh_signal_sethandler(SIGTSTP, signal_handler); /* Ctrl-Z */
+	    
 	    /*
 	     * Don't think this is pipeline friendly.
 	     */
 	    
 	    struct list_elem *e;
 	    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
+
+		jid++;
 
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
 
@@ -258,9 +302,11 @@ main(int ac, char *av[])
 
 		// child
 		if (pid == 0) {
-		    
-		    setpgid(pid, getpgrp());
-		    //printf("I am a child with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+
+		    setpgid(pid, getpgrp()); /* only set this if shell is interactive */
+		    printf("I am a child with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+
+		    // if fg, tcset...
 		    
 		    execvp(command->argv[0], command->argv);
 		}
@@ -275,10 +321,19 @@ main(int ac, char *av[])
 		    if (setpgid(0, 0) < 0)
 			esh_sys_fatal_error("Error Setting Process Group");
 
-		    //printf("I am a parent with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+		    printf("I am a parent with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+
+		    // if fg or atty, then tcsetpgrp here
+		    tcsetpgrp(-1, pid);
 		}
 
-		waitpid(-1, &status, 0);		
+		waitpid(-1, &status, WUNTRACED);
+
+		if (WIFSTOPPED(status)) {
+		    // print out: [jod]+   Stopped   cmdline
+		    printf("Child received SIGTSTP\n");
+		}
+		
 	    }
 	    
 
