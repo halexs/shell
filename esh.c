@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <readline/readline.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include "esh.h"
 
 static void
@@ -190,11 +191,11 @@ main(int ac, char *av[])
 
 	//	printf("Job ID is %d\n", pipeline->jid);
 	
-	struct esh_command *command;
-	command = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
+	struct esh_command *commands;
+	commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
 	//esh_command_print(command);
 
-	int command_type = process_type(command->argv[0]);
+	int command_type = process_type(commands->argv[0]);
 
 	if (command_type == 1)
 	    exit(EXIT_SUCCESS);
@@ -239,14 +240,48 @@ main(int ac, char *av[])
 	else {
 	    
 	    ++jid;
+	    int fd[2];
+
+	    struct list_elem *e;
+	    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
+		struct esh_command *command = list_entry(e, struct esh_command, elem);
+
+		pid_t process;
+		int status;
+
+		if (list_size(&pipeline->commands) > 1) {
+
+		    if (pipe(fd) == -1) {
+			perror("Pipe Error.\n");
+			exit(EXIT_FAILURE);
+		    }
+		}
+
+		process = fork();
+
+		// child
+		if (process == 0) {
+		    // fix pipe shit
+		    execvp(command->argv[0], command->argv);
+		}
+
+		else if (process < 0) {
+		    perror("Fork Error.\n");
+		    exit(EXIT_FAILURE);
+		}
+
+		// parent
+		else {
+		    // pipe shit
+		}
+
+		waitpid(-1, &status, 0);		
+	    }
+	    
 
 	    /*
-	     * Grab current pipeline
 	     * Set pipeline fields
-	     * Loop over commands in the pipeline
 	     * Set each command's struct fields
-	     * Execute each command
-	     * For now execute one -- loop run once.
 	     * Add pipelining support and I/O redirection
 	     */
 	}
