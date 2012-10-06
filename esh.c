@@ -8,6 +8,7 @@
 #include <readline/readline.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "esh-sys-utils.h"
 #include "esh.h"
 
 static void
@@ -252,8 +253,7 @@ main(int ac, char *av[])
 		if (list_size(&pipeline->commands) > 1) {
 
 		    if (pipe(fd) == -1) {
-			perror("Pipe Error.\n");
-			exit(EXIT_FAILURE);
+			esh_sys_fatal_error("Pipe Error");
 		    }
 		}
 
@@ -266,8 +266,7 @@ main(int ac, char *av[])
 		}
 
 		else if (process < 0) {
-		    perror("Fork Error.\n");
-		    exit(EXIT_FAILURE);
+		    esh_sys_fatal_error("Fork Error");
 		}
 
 		// parent
