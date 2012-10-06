@@ -114,7 +114,7 @@ struct esh_shell shell =
     .readline = readline,       /* GNU readline(3) */ 
     .parse_command_line = esh_parse_command_line, /* Default parser */
     .get_jobs = get_jobs,
-    .get_job_from_jid = get_job_from_jid
+    .get_job_from_jid = get_job_from_jid,
     .get_job_from_pgrp = get_job_from_pgrp
     /* .get_cmd_from_pid = get_cmd_from_pid */
 };
@@ -199,10 +199,27 @@ main(int ac, char *av[])
 	if (command_type == 1)
 	    exit(EXIT_SUCCESS);
 
+	// jobs
 	else if (command_type == 2) {
-	    // print out list of jobs
-	}
+	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};	  
+	    struct list_elem *e;
+	    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
+		struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
+		printf("[%d] %s \t", job->jid, statusStrings[job->status]);
 
+		for (e = list_begin(&job->commands); e != list_end(&job->commands); e = list_next(e)) {
+		    struct esh_command *command = list_entry(e, struct esh_command, elem);
+		    int i = 0;
+		    while (command->argv[i])
+			printf("%s ", command->argv[i]);
+		    /*
+		     * This prints out the commands consectuvively. If they were piplined, it will not
+		     * show a | between. Accomodate to insert | in between if a pipe exists.
+		     */
+		}		
+	    }
+	}
+	
 	else if (command_type == 3) {
 	    // fg
 	}
@@ -220,11 +237,18 @@ main(int ac, char *av[])
 	}
 
 	else {
-
+	    
 	    ++jid;
-	    
-	    
-	    // fork here
+
+	    /*
+	     * Grab current pipeline
+	     * Set pipeline fields
+	     * Loop over commands in the pipeline
+	     * Set each command's struct fields
+	     * Execute each command
+	     * For now execute one -- loop run once.
+	     * Add pipelining support and I/O redirection
+	     */
 	}
 
 	
