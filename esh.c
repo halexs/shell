@@ -241,37 +241,41 @@ main(int ac, char *av[])
 	else {
 	    
 	    ++jid;
-	    int fd[2];
+	    pid_t pid;
 
+	    /*
+	     * Don't think this is pipeline friendly.
+	     */
+	    
 	    struct list_elem *e;
 	    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
+
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
 
-		pid_t process;
 		int status;
 
-		if (list_size(&pipeline->commands) > 1) {
-
-		    if (pipe(fd) == -1) {
-			esh_sys_fatal_error("Pipe Error");
-		    }
-		}
-
-		process = fork();
+		pid = fork();
 
 		// child
-		if (process == 0) {
-		    // fix pipe shit
+		if (pid == 0) {
+		    
+		    setpgid(pid, getpgrp());
+		    //printf("I am a child with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+		    
 		    execvp(command->argv[0], command->argv);
 		}
 
-		else if (process < 0) {
+		else if (pid < 0) {
 		    esh_sys_fatal_error("Fork Error");
 		}
 
 		// parent
 		else {
-		    // pipe shit
+
+		    if (setpgid(0, 0) < 0)
+			esh_sys_fatal_error("Error Setting Process Group");
+
+		    //printf("I am a parent with PID %d and pgrp %d\n", getpid(), getpgid(pid));
 		}
 
 		waitpid(-1, &status, 0);		
