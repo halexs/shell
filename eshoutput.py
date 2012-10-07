@@ -23,7 +23,7 @@ bgjob_regex = "\[(\d+)\] (\d+)"
 # a regexp matching a job status when printed using the 'jobs' command
 # must capture (jobid, jobstatus, commandline)
 #
-job_status_regex = "\[(\d+)\].?\s+(\S+)\s+(\/+?)\\r\n" #"\[(\d+)\].?\s+(\S+)\s+(/+?)\\r\n" #"\[(\d+)\].?\s+(\S+)\s+\((.+?)\)\r\n"
+job_status_regex = "(\S+)\n\[(\d+)\].?\s+(\S+)\s+(.+)\s*$" # "\[(\d+)\].?\s+(\S+)\s+(\/+?)\\r\n" #"\[(\d+)\].?\s+(\S+)\s+(/+?)\\r\n" #"\[(\d+)\].?\s+(\S+)\s+\((.+?)\)\r\n"
 
 #
 # job status messages
