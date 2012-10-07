@@ -140,6 +140,27 @@ static void print_job_commands(struct list jobs)
     }
 }
 
+static void print_single_job(struct esh_pipeline *pipeline)
+{
+    struct list_elem *e;
+    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
+	
+	struct esh_command *command = list_entry(e, struct esh_command, elem);
+	
+	char **argv = command->argv;
+	while (*argv) {
+	    printf("%s ", *argv);
+	    fflush(stdout);
+	    argv++;
+	}
+	
+	if (list_size(&pipeline->commands) > 1)
+	    printf("| ");
+    }
+    
+    printf("\n");
+}
+
 /**
  * Assign ownership of ther terminal to process group
  * pgrp, restoring its terminal state if provided.
@@ -163,6 +184,24 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
     if (pg_tty_state)
 	esh_sys_tty_restore(pg_tty_state);
     esh_signal_unblock(SIGTTOU);
+}
+
+static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pipeline, struct termios *shell_tty)
+{
+    int status;
+    waitpid(-1, &status, WUNTRACED);
+    give_terminal_to(getpgrp(), shell_tty);
+		
+    if (WIFSTOPPED(status)) {
+	pipeline->status = STOPPED;
+	struct list_elem *e = list_pop_front(&cline->pipes);
+	list_push_front(&current_jobs, e);
+	printf("\n[%d]+ Stopped      ", pipeline->jid);
+	print_job_commands(current_jobs);
+    }
+		
+    if (WTERMSIG(status))
+	printf("\n");
 }
 
 /* The shell object plugins use.
@@ -255,31 +294,45 @@ main(int ac, char *av[])
 	    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
 		struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
 
-		printf("[%d] %s \t", pipeline->jid, statusStrings[pipeline->status]);
+		printf("[%d] %s     ", pipeline->jid, statusStrings[pipeline->status]);
 
-		struct list_elem *e2;
-		for (e2 = list_begin(&pipeline->commands); e2 != list_end(&pipeline->commands); e2 = list_next(e2)) {
-		    
-		    struct esh_command *command = list_entry(e2, struct esh_command, elem);
-		    
-		    char **argv = command->argv;
-		    while (*argv) {
-			printf("%s ", *argv);
-			fflush(stdout);
-			argv++;
-		    }
-		    
-		    if (list_size(&pipeline->commands) > 1)
-			printf("| ");
-		}
+		print_single_job(pipeline);
 
-		printf("\n");
+		/* struct list_elem *e2; */
+		/* for (e2 = list_begin(&pipeline->commands); e2 != list_end(&pipeline->commands); e2 = list_next(e2)) { */
+		    
+		/*     struct esh_command *command = list_entry(e2, struct esh_command, elem); */
+		    
+		/*     char **argv = command->argv; */
+		/*     while (*argv) { */
+		/* 	printf("%s ", *argv); */
+		/* 	fflush(stdout); */
+		/* 	argv++; */
+		/*     } */
+		    
+		/*     if (list_size(&pipeline->commands) > 1) */
+		/* 	printf("| "); */
+		/* } */
+
+		/* printf("\n"); */
 	    }
 	}
-	
+
+	// fg
 	else if (command_type == 3) {
+
 	    struct list_elem *first_job = list_begin(&current_jobs);
+	    struct esh_pipeline *pipeline = list_entry(first_job, struct esh_pipeline, elem);
+
+	    print_single_job(pipeline);
 	    
+	    give_terminal_to(pipeline->pgrp, shell_tty);
+
+	    // check if SIGCONT is needed in the future -- if (cont) perhaps
+	    if (kill (- pipeline->pgrp, SIGCONT) < 0)
+		esh_sys_fatal_error("fg error: kill SIGCONT");
+
+	    wait_for_job(cline, pipeline, shell_tty);
 	}
 
 	else if (command_type == 4) {
@@ -355,24 +408,8 @@ main(int ac, char *av[])
 		}
 	    }
 
-	    if (!pipeline->bg_job) {
-
-		/* PUT IN LOOP AND REAP WAIT_ANY INSTEAD OF -1 */
-		int status;
-		waitpid(-1, &status, WUNTRACED);
-		give_terminal_to(getpgrp(), shell_tty);
-		
-		if (WIFSTOPPED(status)) {
-		    pipeline->status = STOPPED;
-		    struct list_elem *e = list_pop_front(&cline->pipes);
-		    list_push_front(&current_jobs, e);
-		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
-		    print_job_commands(current_jobs);
-		}
-		
-		if (WTERMSIG(status))
-		    printf("\n");
-	    }
+	    if (!pipeline->bg_job)
+		wait_for_job(cline, pipeline, shell_tty);
 
 	    // this is a background job that is currnetly running in the bg with no terminal access
 	    else {
