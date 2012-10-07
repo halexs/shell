@@ -118,9 +118,9 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
 /* } */
 
 /*
- * Print out an array of pointers to strings.
+ * Prints out the commands for a job
  */
-static void print_job(struct list jobs)
+static void print_job_commands(struct list jobs)
 {
     struct list_elem *e = list_begin(&jobs);
     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
@@ -132,7 +132,6 @@ static void print_job(struct list jobs)
 	char **argv = command->argv;
 	while (*argv) {
 	    printf("%s ", *argv);
-	    fflush(stdout);
 	    argv++;
 	}
 
@@ -238,10 +237,6 @@ main(int ac, char *av[])
 
 	struct esh_pipeline *pipeline;
 	pipeline = list_entry(list_begin(&cline->pipes), struct esh_pipeline, elem);
-
-	//esh_pipeline_print(pipeline);
-	//	printf("Size of pipeline is %lu\n", list_size(&cline->pipes));
-	//	printf("Size of pipeline commands is %lu\n", list_size(&pipeline->commands));
 	
 	struct esh_command *commands;
 	commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
@@ -254,30 +249,37 @@ main(int ac, char *av[])
 
 	// jobs
 	else if (command_type == 2) {
-	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};
 
-	    printf("Size of current jobs: %lu\n", list_size(&current_jobs));
-	    
+	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};
 	    struct list_elem *e;
 	    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
-		struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
-		printf("[%d] %s \t", job->jid, statusStrings[job->status]);
+		struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
 
-		for (e = list_begin(&job->commands); e != list_end(&job->commands); e = list_next(e)) {
-		    struct esh_command *command = list_entry(e, struct esh_command, elem);
-		    int i = 0;
-		    while (command->argv[i])
-			printf("%s ", command->argv[i]);
-		    /*
-		     * This prints out the commands consectuvively. If they were piplined, it will not
-		     * show a | between. Accomodate to insert | in between if a pipe exists.
-		     */
-		}		
+		printf("[%d] %s \t", pipeline->jid, statusStrings[pipeline->status]);
+
+		struct list_elem *e2;
+		for (e2 = list_begin(&pipeline->commands); e2 != list_end(&pipeline->commands); e2 = list_next(e2)) {
+		    
+		    struct esh_command *command = list_entry(e2, struct esh_command, elem);
+		    
+		    char **argv = command->argv;
+		    while (*argv) {
+			printf("%s ", *argv);
+			fflush(stdout);
+			argv++;
+		    }
+		    
+		    if (list_size(&pipeline->commands) > 1)
+			printf("| ");
+		}
+
+		printf("\n");
 	    }
 	}
 	
 	else if (command_type == 3) {
-	    // fg
+	    struct list_elem *first_job = list_begin(&current_jobs);
+	    
 	}
 
 	else if (command_type == 4) {
@@ -354,16 +356,18 @@ main(int ac, char *av[])
 	    }
 
 	    if (!pipeline->bg_job) {
-		
+
+		/* PUT IN LOOP AND REAP WAIT_ANY INSTEAD OF -1 */
 		int status;
-		waitpid(-1, &status, WUNTRACED);		
+		waitpid(-1, &status, WUNTRACED);
 		give_terminal_to(getpgrp(), shell_tty);
 		
 		if (WIFSTOPPED(status)) {
+		    pipeline->status = STOPPED;
 		    struct list_elem *e = list_pop_front(&cline->pipes);
 		    list_push_front(&current_jobs, e);
 		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
-		    print_job(current_jobs);
+		    print_job_commands(current_jobs);
 		}
 		
 		if (WTERMSIG(status))
