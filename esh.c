@@ -116,11 +116,17 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
 /* { */
 /*     // */
 /* } */
-   
 
-/* The shell object plugins use.
- * Some methods are set to defaults.
+/*
+ * Print out an array of pointers to strings.
  */
+static void print_command(char **argv)
+{
+    while (*argv) {
+	printf("%s ", *argv);
+	argv++;
+    }
+}
 
 /**
  * Assign ownership of ther terminal to process group
@@ -147,6 +153,9 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
     esh_signal_unblock(SIGTTOU);
 }
 
+/* The shell object plugins use.
+ * Some methods are set to defaults.
+ */
 struct esh_shell shell =
 {
     .build_prompt = build_prompt_from_plugins,
@@ -298,8 +307,13 @@ main(int ac, char *av[])
 		    if (setpgid(pid, pipeline->pgrp) < 0)
 			esh_sys_fatal_error("Error Setting Process Group");
 
-		    // if fg then:
-		    give_terminal_to(pipeline->pgrp, shell_tty);
+		    if (!pipeline->bg_job) {
+			give_terminal_to(pipeline->pgrp, shell_tty);
+			pipeline->status = FOREGROUND;
+		    }
+
+		    else
+			pipeline->status = BACKGROUND;
 
 		    // signal handling here
 		    // piping shit here
@@ -322,12 +336,13 @@ main(int ac, char *av[])
 			esh_sys_fatal_error("Error Setting Process Group");
 		}
 
-		waitpid(-1, &status, 0);
+		waitpid(-1, &status, WUNTRACED);		
 		give_terminal_to(getpgrp(), shell_tty);
 
-		// print out: [jod]+   Stopped   cmdline
-		if (WIFSTOPPED(status))
-		    printf("[%d]+ Stopped \t %s\n", pipeline->jid, command->argv[0]);
+		if (WIFSTOPPED(status)) {
+		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
+		    print_command(command->argv);
+		}
 
 		if (WTERMSIG(status))
 		    printf("\n");
