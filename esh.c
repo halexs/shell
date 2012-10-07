@@ -66,7 +66,7 @@ static struct list * get_jobs(void)
 }
 
 /*
- * Searches the pipeline and returns the job corresponding to jid
+v * Searches the pipeline and returns the job corresponding to jid
  * Returns the job, or NULL if not found
  */
 static struct esh_pipeline * get_job_from_jid(int jid)
@@ -120,11 +120,24 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
 /*
  * Print out an array of pointers to strings.
  */
-static void print_command(char **argv)
+static void print_job(struct list jobs)
 {
-    while (*argv) {
-	printf("%s ", *argv);
-	argv++;
+    struct list_elem *e = list_begin(&jobs);
+    struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
+    
+    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
+
+	struct esh_command *command = list_entry(e, struct esh_command, elem);
+
+	char **argv = command->argv;
+	while (*argv) {
+	    printf("%s ", *argv);
+	    fflush(stdout);
+	    argv++;
+	}
+
+	if (list_size(&pipeline->commands) > 1)
+	    printf("| ");
     }
 }
 
@@ -241,7 +254,10 @@ main(int ac, char *av[])
 
 	// jobs
 	else if (command_type == 2) {
-	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};	  
+	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};
+
+	    printf("Size of current jobs: %lu\n", list_size(&current_jobs));
+	    
 	    struct list_elem *e;
 	    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
 		struct esh_pipeline *job = list_entry(e, struct esh_pipeline, elem);
@@ -292,7 +308,7 @@ main(int ac, char *av[])
 
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
 		
-		int status;
+		//int status;
 
 		pid = fork();
 
@@ -300,6 +316,7 @@ main(int ac, char *av[])
 		if (pid == 0) {
 
 		    pid = getpid();
+		    command->pid = pid;
 
 		    if (pipeline->pgrp == -1)
 			pipeline->pgrp = pid;
@@ -328,26 +345,39 @@ main(int ac, char *av[])
 
 		// parent
 		else {
-		    // pop process and place into new list -- see piazza
 		    if (pipeline->pgrp == -1)
 			pipeline->pgrp = pid;		    
 		    
 		    if (setpgid(pid, pipeline->pgrp) < 0)
 			esh_sys_fatal_error("Error Setting Process Group");
 		}
+	    }
 
+	    if (!pipeline->bg_job) {
+		
+		int status;
 		waitpid(-1, &status, WUNTRACED);		
 		give_terminal_to(getpgrp(), shell_tty);
-
+		
 		if (WIFSTOPPED(status)) {
+		    struct list_elem *e = list_pop_front(&cline->pipes);
+		    list_push_front(&current_jobs, e);
 		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
-		    print_command(command->argv);
+		    print_job(current_jobs);
 		}
-
+		
 		if (WTERMSIG(status))
 		    printf("\n");
 	    }
 
+	    // this is a background job that is currnetly running in the bg with no terminal access
+	    else {
+		struct list_elem *e = list_pop_front(&cline->pipes);
+		list_push_front(&current_jobs, e);		
+	    }
+
+
+	    
 	    /*
 	     * Set pipeline fields
 	     * Set each command's struct fields
