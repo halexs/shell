@@ -97,15 +97,15 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
     return NULL;
 }
 
-static void signal_handler(int signo, siginfo_t *info, void *ctxt)
-{
+/* static void signal_handler(int signo, siginfo_t *info, void *ctxt) */
+/* { */
 
-    // sigint 2 sigtstp 20
-    //if (signo == 2)
+/*     // sigint 2 sigtstp 20 */
+/*     //if (signo == 2) */
 	
-    //    printf("Signal Handler Called");
-    printf("\n");
-}
+/*     //    printf("Signal Handler Called"); */
+/*     printf("\n"); */
+/* } */
     
 
 /* /\* */
@@ -180,7 +180,9 @@ main(int ac, char *av[])
     }
 
     esh_plugin_initialize(&shell);
+    setpgid(0, 0);
     struct termios *shell_tty = esh_sys_tty_init();
+    give_terminal_to(getpgrp(), shell_tty);
 
     /*
      * TODO: set up signal handlers here
@@ -188,8 +190,6 @@ main(int ac, char *av[])
 
     /* Read/eval loop. */
     for (;;) {
-
-	give_terminal_to(getpgrp(), shell_tty);
 
 	/*
 	 * TODO: Utilise the functionality given in init_shell for signals and such or we will
@@ -214,23 +214,12 @@ main(int ac, char *av[])
             continue;
         }
 
-	/*
-	 * This assumes we only have one command in the pipeline. Must be accomodated
-	 * in a for-loop for pipelining and I/O redirection support.
-	 */
-
 	struct esh_pipeline *pipeline;
 	pipeline = list_entry(list_begin(&cline->pipes), struct esh_pipeline, elem);
+
 	//esh_pipeline_print(pipeline);
-
-	/*
-	 * TODO: set job ID properly
-	 */
-
 	//	printf("Size of pipeline is %lu\n", list_size(&cline->pipes));
 	//	printf("Size of pipeline commands is %lu\n", list_size(&pipeline->commands));
-
-	//	printf("Job ID is %d\n", pipeline->jid);
 	
 	struct esh_command *commands;
 	commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
@@ -279,23 +268,21 @@ main(int ac, char *av[])
 	}
 
 	else {
-	    
-	    pid_t pid;
 
-	    esh_signal_sethandler(SIGINT, signal_handler);  /* Ctrl-C */
-	    esh_signal_sethandler(SIGTSTP, signal_handler); /* Ctrl-Z */
-	    
 	    /*
 	     * Don't think this is pipeline friendly.
 	     */
+
+	    jid++;
+	    pipeline->jid = jid;
+	    pipeline->pgrp = -1;
+	    pid_t pid;
 	    
 	    struct list_elem *e;
 	    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
 
-		jid++;
-
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
-
+		
 		int status;
 
 		pid = fork();
@@ -303,12 +290,22 @@ main(int ac, char *av[])
 		// child
 		if (pid == 0) {
 
-		    setpgid(pid, getpgrp()); /* only set this if shell is interactive */
-		    printf("I am a child with PID %d and pgrp %d\n", getpid(), getpgid(pid));
+		    pid = getpid();
 
-		    // if fg, tcset...
+		    if (pipeline->pgrp == -1)
+			pipeline->pgrp = pid;
+
+		    if (setpgid(pid, pipeline->pgrp) < 0)
+			esh_sys_fatal_error("Error Setting Process Group");
+
+		    // if fg then:
+		    give_terminal_to(pipeline->pgrp, shell_tty);
+
+		    // signal handling here
+		    // piping shit here
 		    
-		    execvp(command->argv[0], command->argv);
+		    if (execvp(command->argv[0], command->argv) < 0)
+			esh_sys_fatal_error("Exec Error");
 		}
 
 		else if (pid < 0) {
@@ -317,25 +314,24 @@ main(int ac, char *av[])
 
 		// parent
 		else {
-
-		    if (setpgid(0, 0) < 0)
+		    // pop process and place into new list -- see piazza
+		    if (pipeline->pgrp == -1)
+			pipeline->pgrp = pid;		    
+		    
+		    if (setpgid(pid, pipeline->pgrp) < 0)
 			esh_sys_fatal_error("Error Setting Process Group");
-
-		    printf("I am a parent with PID %d and pgrp %d\n", getpid(), getpgid(pid));
-
-		    // if fg or atty, then tcsetpgrp here
-		    tcsetpgrp(-1, pid);
 		}
 
-		waitpid(-1, &status, WUNTRACED);
+		waitpid(-1, &status, 0);
+		give_terminal_to(getpgrp(), shell_tty);
 
-		if (WIFSTOPPED(status)) {
-		    // print out: [jod]+   Stopped   cmdline
-		    printf("Child received SIGTSTP\n");
-		}
-		
+		// print out: [jod]+   Stopped   cmdline
+		if (WIFSTOPPED(status))
+		    printf("[%d]+ Stopped \t %s\n", pipeline->jid, command->argv[0]);
+
+		if (WTERMSIG(status))
+		    printf("\n");
 	    }
-	    
 
 	    /*
 	     * Set pipeline fields
@@ -386,7 +382,6 @@ int process_type(char *command)
 	
     return 0;
 }
-
 
 /*
 * Executes all pipelines included in esh_command_line.
