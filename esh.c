@@ -124,7 +124,8 @@ static void print_job_commands(struct list jobs)
 {
     struct list_elem *e = list_begin(&jobs);
     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
-    
+
+    printf("(");
     for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
 
 	struct esh_command *command = list_entry(e, struct esh_command, elem);
@@ -136,8 +137,10 @@ static void print_job_commands(struct list jobs)
 	}
 
 	if (list_size(&pipeline->commands) > 1)
-	    printf("| ");
+	    printf(" | ");
     }
+
+    printf(")");
 }
 
 static void print_single_job(struct esh_pipeline *pipeline)
