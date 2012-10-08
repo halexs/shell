@@ -188,8 +188,8 @@ static void change_job_status(pid_t pid, int status)
 		/*     print_job_commands(current_jobs); */
 		/* } */
 		
-		if (WTERMSIG(status))
-		    printf("\n");
+		if (WIFEXITED(status))
+		    list_remove(e);
 		
 		else if (WIFSIGNALED(status))
 		    list_remove(e);
