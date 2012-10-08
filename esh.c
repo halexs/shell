@@ -187,7 +187,7 @@ static void change_job_status(pid_t pid, int status)
 		/*     printf("\n[%d]+ Stopped      ", pipeline->jid); */
 		/*     print_job_commands(current_jobs); */
 		/* } */
-		
+
 		if (WIFEXITED(status))
 		    list_remove(e);
 		
@@ -266,7 +266,7 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
     int status;
     waitpid(-1, &status, WUNTRACED);
     give_terminal_to(getpgrp(), shell_tty);
-		
+
     if (WIFSTOPPED(status)) {
     	pipeline->status = STOPPED;
     	struct list_elem *e = list_pop_front(&cline->pipes);
@@ -277,6 +277,10 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
 		
     if (WTERMSIG(status))
     	printf("\n");
+
+    if (WIFEXITED(status)) {
+	// remove element from list here
+    }
 }
 
 /* The shell object plugins use.
@@ -375,19 +379,49 @@ main(int ac, char *av[])
 
 	// fg
 	else if (command_type == 3) {
-
-	    struct list_elem *first_job = list_begin(&current_jobs);
-	    struct esh_pipeline *pipeline = list_entry(first_job, struct esh_pipeline, elem);
-
-	    print_single_job(pipeline);
 	    
-	    give_terminal_to(pipeline->pgrp, shell_tty);
+	    if (!list_empty(&current_jobs)) {
 
-	    // check if SIGCONT is needed in the future -- if (cont) perhaps
-	    if (kill (- pipeline->pgrp, SIGCONT) < 0)
-		esh_sys_fatal_error("fg error: kill SIGCONT");
+		printf("Current Jobs: %lu\n", list_size(&current_jobs));
+		
+		if (commands->argv[1] != NULL && commands->argv[2] != NULL) {
 
-	    wait_for_job(cline, pipeline, shell_tty);
+		    int jid_needed = atoi(commands->argv[2]);
+
+		    struct list_elem *e;
+		    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
+
+			struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
+
+			if (pipeline->jid == jid_needed) {
+
+			    print_single_job(pipeline);
+			    give_terminal_to(pipeline->pgrp, shell_tty);
+
+			    // check if SIGCONT is needed in the future -- if (cont) perhaps
+			    if (kill (- pipeline->pgrp, SIGCONT) < 0)
+				esh_sys_fatal_error("fg error: kill SIGCONT");
+			    
+			    wait_for_job(cline, pipeline, shell_tty);
+			}
+		    }
+		}
+		
+		else {
+		    
+		    struct list_elem *first_job = list_begin(&current_jobs);
+		    struct esh_pipeline *pipeline = list_entry(first_job, struct esh_pipeline, elem);
+		    
+		    print_single_job(pipeline);		    
+		    give_terminal_to(pipeline->pgrp, shell_tty);
+		    
+		    // check if SIGCONT is needed in the future -- if (cont) perhaps
+		    if (kill (- pipeline->pgrp, SIGCONT) < 0)
+			esh_sys_fatal_error("fg error: kill SIGCONT");
+		    
+		    wait_for_job(cline, pipeline, shell_tty);
+		}		
+	    }
 	}
 
 	// bg, kill, stop
