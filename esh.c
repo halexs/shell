@@ -8,6 +8,7 @@
 #include <readline/readline.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <assert.h>
 #include "esh-sys-utils.h"
 #include "esh.h"
 
@@ -95,18 +96,7 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp)
     }
 
     return NULL;
-}
-
-/* static void signal_handler(int signo, siginfo_t *info, void *ctxt) */
-/* { */
-
-/*     // sigint 2 sigtstp 20 */
-/*     //if (signo == 2) */
-	
-/*     //    printf("Signal Handler Called"); */
-/*     printf("\n"); */
-/* } */
-    
+}    
 
 /* /\* */
 /*  * Searches the commands (processes) and returns the process */
@@ -166,6 +156,67 @@ static void print_single_job(struct esh_pipeline *pipeline)
     printf(")\n");
 }
 
+/*
+ * Change the status of a given job
+ */
+static void change_job_status(pid_t pid, int status)
+{
+    if (pid > 0) {
+	
+	struct list_elem *e;
+	for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
+	    
+	    struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
+	    
+	    if (pipeline-> pgrp == pid) {
+		
+		if (WIFSTOPPED(status)) {
+		    pipeline->status = STOPPED;
+		    
+		    if (kill(-pipeline->pgrp, SIGSTOP) < 0)
+			esh_sys_fatal_error("kill SIGTSTOP error");
+		    
+		    printf("\n[%d]+ Stopped      ", pipeline->jid);
+		    print_job_commands(current_jobs);
+		}		
+
+		/* if (WIFSTOPPED(status)) { */
+		/*     pipeline->status = STOPPED; */
+		/*     struct list_elem *e = list_pop_front(&cline->pipes); */
+		/*     list_push_front(&current_jobs, e); */
+		/*     printf("\n[%d]+ Stopped      ", pipeline->jid); */
+		/*     print_job_commands(current_jobs); */
+		/* } */
+		
+		if (WTERMSIG(status))
+		    printf("\n");
+		
+		else if (WIFSIGNALED(status))
+		    list_remove(e);
+		
+		else if (WIFCONTINUED(status))
+		    list_remove(e);
+	    }
+	}
+    }
+    
+    else if (pid < 0)
+	esh_sys_fatal_error("Error in wait in child handler");
+}
+
+/*
+ * SIGCHLD Handler
+ */
+static void child_handler(int sig, siginfo_t *info, void *_ctxt)
+{
+    assert (sig == SIGCHLD);
+
+    int status;
+    pid_t pid;
+    while ((pid = waitpid(-1, &status, WUNTRACED|WNOHANG)) > 0)
+	change_job_status(pid, status);
+}
+
 /**
  * Assign ownership of ther terminal to process group
  * pgrp, restoring its terminal state if provided.
@@ -191,22 +242,41 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
     esh_signal_unblock(SIGTTOU);
 }
 
+/*
+ * Wait
+ */
 static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pipeline, struct termios *shell_tty)
 {
+    /* assert(esh_signal_is_blocked(SIGCHLD)); */
+
+    /* while (pipeline->status == FOREGROUND && !list_empty(&pipeline->commands)) { */
+    /* 	int status; */
+    /* 	pid_t pid; */
+    /* 	pid = waitpid(-1, &status, WUNTRACED); */
+    /* 	give_terminal_to(getpgrp(), shell_tty); */
+    /* 	change_job_status(pid, status); */
+    /* 	    if (WIFSTOPPED(status)) { */
+    /* 	pipeline->status = STOPPED; */
+    /* 	struct list_elem *e = list_pop_front(&cline->pipes); */
+    /* 	list_push_front(&current_jobs, e); */
+    /* 	printf("\n[%d]+ Stopped      ", pipeline->jid); */
+    /* 	print_job_commands(current_jobs); */
+    /* } */
+    
     int status;
     waitpid(-1, &status, WUNTRACED);
     give_terminal_to(getpgrp(), shell_tty);
 		
     if (WIFSTOPPED(status)) {
-	pipeline->status = STOPPED;
-	struct list_elem *e = list_pop_front(&cline->pipes);
-	list_push_front(&current_jobs, e);
-	printf("\n[%d]+ Stopped      ", pipeline->jid);
-	print_job_commands(current_jobs);
+    	pipeline->status = STOPPED;
+    	struct list_elem *e = list_pop_front(&cline->pipes);
+    	list_push_front(&current_jobs, e);
+    	printf("\n[%d]+ Stopped      ", pipeline->jid);
+    	print_job_commands(current_jobs);
     }
 		
     if (WTERMSIG(status))
-	printf("\n");
+    	printf("\n");
 }
 
 /* The shell object plugins use.
@@ -227,7 +297,7 @@ int
 main(int ac, char *av[])
 {
     int opt;
-    int jid = 0;
+    jid = 0;
     list_init(&esh_plugin_list);
     list_init(&current_jobs);
 
@@ -294,7 +364,7 @@ main(int ac, char *av[])
 	// jobs
 	else if (command_type == 2) {
 
-	    char *statusStrings[] = {"Foreground","Background","Stopped", "Needs Terminal"};
+	    char *statusStrings[] = {"Foreground","Running","Stopped", "Needs Terminal"};
 	    struct list_elem *e;
 	    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
 		struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
@@ -320,9 +390,12 @@ main(int ac, char *av[])
 	    wait_for_job(cline, pipeline, shell_tty);
 	}
 
+	// bg, kill, stop
 	else if (command_type == 4 || command_type == 5 || command_type == 6) {
-	    // bg, kill, stop
-	    
+
+	    /*
+	     * FIX THESE IDS must comply with delcaration above
+	     */
 	    int job_id = -1;
 	    int pgrp_id;
 	    
@@ -383,8 +456,7 @@ main(int ac, char *av[])
 		    }
 		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
 		    print_job_commands(current_jobs);
-		}
-				
+		}				
 	    }
 	}
 
@@ -403,7 +475,9 @@ main(int ac, char *av[])
 	    for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
 
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
-		
+
+		esh_signal_sethandler(SIGCHLD, child_handler);
+		esh_signal_block(SIGCHLD);
 		pid = fork();
 
 		// child
@@ -426,9 +500,8 @@ main(int ac, char *av[])
 		    else
 			pipeline->status = BACKGROUND;
 
-		    // signal handling here
-		    // piping shit here
-		    
+		    // signal handling here ---- more sig handles?
+
 		    if (execvp(command->argv[0], command->argv) < 0)
 			esh_sys_fatal_error("Exec Error");
 		}
@@ -450,33 +523,19 @@ main(int ac, char *av[])
 	    if (!pipeline->bg_job)
 		wait_for_job(cline, pipeline, shell_tty);
 
-	    // this is a background job that is currnetly running in the bg with no terminal access
 	    else {
-		struct list_elem *e = list_pop_front(&cline->pipes);
-		list_push_front(&current_jobs, e);		
+		pipeline->status = BACKGROUND;
+		printf("[%d] %d\n", pipeline->jid, pipeline->pgrp);
+		e = list_pop_front(&cline->pipes);
+		list_push_front(&current_jobs, e);
 	    }
 
-
-	    
-	    /*
-	     * Set pipeline fields
-	     * Set each command's struct fields
-	     * Add pipelining support and I/O redirection
-	     */
+	    esh_signal_unblock(SIGCHLD);
 	}
-
 	
-
-
-	
-	//printf("%s\n", command->argv[0]);
-
-
-
-
-	//esh_command_line_print(cline);
         esh_command_line_free(cline);
     }
+    
     return 0;
     
 }
@@ -507,40 +566,3 @@ int process_type(char *command)
 	
     return 0;
 }
-
-/*
-* Executes all pipelines included in esh_command_line.
-
-static void execute_command_line(struct esh_command_line *command_line)
-{
-	struct list_elem * e = list_begin (&command_line->pipes); 
-
-    for (; e != list_end (&command_line->pipes); e = list_next (e)) 
-	{
-        struct esh_pipeline *pipe = list_entry(e, struct esh_pipeline, elem);
-
-		//execute the pipeline
-		esh_execute_pipe(pipe);
-    }
-    }*/
-
-/*
-* Remove a job from the job list pipeline.
-
-static void remove_job(struct esh_pipeline *pipeline)
-{
-	struct list_elem *e = list_begin(&jobs_list);
-		
-	for(; e != list_end(&jobs_list); e = list_next(e))
-	{
-		struct job *j = list_entry(e, struct job, elem);
-			
-		if(j->pipe->pgrp == pipeline->pgrp)
-		{
-			list_remove(e);
-			return;
-		}
-	}
-	return;
-}
-*/

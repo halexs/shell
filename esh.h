@@ -208,3 +208,6 @@ struct list /* <esh_pipeline> */  current_jobs;
 
 /* Job Execution Declarations */
 int process_type(char *);
+
+/* Global variable to keep track of job ids */
+int jid;
