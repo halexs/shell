@@ -118,9 +118,9 @@ static void print_job_commands(struct list jobs)
 
     printf("(");
     for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-
+	
         struct esh_command *command = list_entry(e, struct esh_command, elem);
-
+	
         char **argv = command->argv;
         while (*argv) {
             printf("%s ", *argv);
@@ -168,31 +168,31 @@ static void change_job_status(pid_t pid, int status)
 
         struct list_elem *e;
         for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
-
+	    
             struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
-
+	    
             if (pipeline->pgrp == pid) {
-
+		
                 if (WIFSTOPPED(status)) {
                     pipeline->status = STOPPED;
                     printf("\n[%d]+ Stopped      ", pipeline->jid);
                     print_job_commands(current_jobs);
                 }
-
+		
                 if (WTERMSIG(status) == 9) {
                     list_remove(e);
                 }
-
+		
                 else {
                     // printf("\n");
                 }
-
+		
                 // normal termination
                 if (WIFEXITED(status)) {
                     // if job was bg, then print out done stuff (maybe?)
                     list_remove(e);
                 }
-
+		
                 else if (WIFSIGNALED(status)) {
                     list_remove(e);
                 }
@@ -259,46 +259,14 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
  */
 static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pipeline, struct termios *shell_tty)
 {
-    /* assert(esh_signal_is_blocked(SIGCHLD)); */
-
-    /* while (pipeline->status == FOREGROUND && !list_empty(&pipeline->commands)) { */
-    /* 	int status; */
-    /* 	pid_t pid; */
-    /* 	pid = waitpid(-1, &status, WUNTRACED); */
-    /* 	give_terminal_to(getpgrp(), shell_tty); */
-    /* 	change_job_status(pid, status); */
-    /* 	    if (WIFSTOPPED(status)) { */
-    /* 	pipeline->status = STOPPED; */
-    /* 	struct list_elem *e = list_pop_front(&cline->pipes); */
-    /* 	list_push_front(&current_jobs, e); */
-    /* 	printf("\n[%d]+ Stopped      ", pipeline->jid); */
-    /* 	print_job_commands(current_jobs); */
-    /* } */
-
     int status;
     pid_t pid;
     pid = waitpid(-1, &status, WUNTRACED);
-    // while ((pid = waitpid(-1, &status, WUNTRACED) > 0)) {
+ 
     if (pid > 0) {
         give_terminal_to(getpgrp(), shell_tty);
         change_job_status(pid, status);
     }
-    /* if (WIFSTOPPED(status)) { */
-    /* 	pipeline->status = STOPPED; */
-    /* 	/\* struct list_elem *e = list_pop_front(&cline->pipes); *\/ */
-    /* 	/\* list_push_front(&current_jobs, e); *\/ */
-    /* 	printf("\n[%d]+ Stopped      ", pipeline->jid); */
-    /* 	print_job_commands(current_jobs); */
-    /* } */
-
-    /* if (WTERMSIG(status)) */
-    /* 	printf("\n"); */
-
-    /* if (WIFEXITED(status)) { */
-
-    /* 	// remove element from list here */
-    /* } */
-    //}
 }
 
 /* The shell object plugins use.
@@ -342,11 +310,6 @@ main(int ac, char *av[])
 
     /* Read/eval loop. */
     for (;;) {
-
-        /*
-         * TODO: Utilise the functionality given in init_shell for signals and such or we will
-         * not have control returned to us after a job is run.
-         */
 
         /* Do not output a prompt unless shell's stdin is a terminal */
         char * prompt = isatty(0) ? shell.build_prompt() : NULL;
@@ -393,103 +356,37 @@ main(int ac, char *av[])
             }
         }
 
-        // fg
-        // else if (command_type == 3) {
-
-            // if (!list_empty(&current_jobs)) {
-
-                // // if (commands->argv[1] != NULL && commands->argv[2] != NULL) {
-
-                    // int jid_needed = atoi(commands->argv[1]);
-
-                    // struct esh_pipeline *pipeline = get_job_from_jid(jid_needed);
-                    // // if (pipeline != NULL) {
-						// // esh_signal_block(SIGCHLD);
-						// // pipeline->status = FOREGROUND;
-                        // // print_single_job(pipeline);
-                        // // give_terminal_to(pipeline->pgrp, shell_tty);
-
-                        // // // check if SIGCONT is needed in the future -- if (cont) perhaps
-                        // // if (kill (-pipeline->pgrp, SIGCONT) < 0) {
-                            // // esh_sys_fatal_error("fg error: kill SIGCONT");
-                        // // }
-
-                        // // wait_for_job(cline, pipeline, shell_tty);
-						// // esh_signal_unblock(SIGCHLD);
-                    // // }
-
-                    // /* struct list_elem *e; */
-                    // /* for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) { */
-
-                    // /* 	struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem); */
-
-                    // /* 	if (pipeline->jid == jid_needed) { */
-
-                    // /* 	    print_single_job(pipeline); */
-                    // /* 	    give_terminal_to(pipeline->pgrp, shell_tty); */
-
-                    // /* 	    // check if SIGCONT is needed in the future -- if (cont) perhaps */
-                    // /* 	    if (kill (-pipeline->pgrp, SIGCONT) < 0) */
-                    // /* 		esh_sys_fatal_error("fg error: kill SIGCONT"); */
-
-                    // /* 	    wait_for_job(cline, pipeline, shell_tty); */
-                    // /* 	} */
-                    // /* } */
-                // // }
-
-                // // else {
-
-                    // // struct list_elem *first_job = list_begin(&current_jobs);
-                    // // struct esh_pipeline *pipeline = list_entry(first_job, struct esh_pipeline, elem);
-
-					// esh_signal_block(SIGCHLD);
-					// pipeline->status = FOREGROUND;
-                    // print_single_job(pipeline);
-                    // give_terminal_to(pipeline->pgrp, shell_tty);
-
-                    // // check if SIGCONT is needed in the future -- if (cont) perhaps
-                    // if (kill (-pipeline->pgrp, SIGCONT) < 0) {
-                        // esh_sys_fatal_error("fg error: kill SIGCONT");
-                    // }
-
-                    // wait_for_job(cline, pipeline, shell_tty);
-					// esh_signal_unblock(SIGCHLD);
-                // // }
-            // }
-        // }
-
         // fg, bg, kill, stop
         else if (command_type == 3 || command_type == 4 || command_type == 5 || command_type == 6) {
 
             if (!list_empty(&current_jobs)) {
 
                 int jobid_arg = -1;
-
+		
                 if (commands->argv[1] == NULL) {
                     struct list_elem *e = list_back(&current_jobs);
                     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
                     jobid_arg = pipeline->jid;
                 }
                 else {
-					if(strncmp(commands->argv[1], "%", 1) == 0)
-					{
-						char *temp = (char*) malloc(5);
-						strcpy(temp, commands->argv[1]+1);
-						jobid_arg = atoi(temp);
-						free(temp);
-					} else {
-						jobid_arg = atoi(commands->argv[1]);
-					}
+		    if (strncmp(commands->argv[1], "%", 1) == 0) {
+			char *temp = (char*) malloc(5);
+			strcpy(temp, commands->argv[1]+1);
+			jobid_arg = atoi(temp);
+			free(temp);
+		    } else {
+			jobid_arg = atoi(commands->argv[1]);
+		    }
                 }
-				
+		
                 struct esh_pipeline *pipeline;
                 pipeline = get_job_from_jid(jobid_arg);
-				
-				// fg
+		
+		// fg
                 if (command_type == 3) {
-				
-					esh_signal_block(SIGCHLD);
-					pipeline->status = FOREGROUND;
+		    
+		    esh_signal_block(SIGCHLD);
+		    pipeline->status = FOREGROUND;
                     print_single_job(pipeline);
                     give_terminal_to(pipeline->pgrp, shell_tty);
 
@@ -497,16 +394,16 @@ main(int ac, char *av[])
                     if (kill (-pipeline->pgrp, SIGCONT) < 0) {
                         esh_sys_fatal_error("fg error: kill SIGCONT");
                     }
-
+		    
                     wait_for_job(cline, pipeline, shell_tty);
-					esh_signal_unblock(SIGCHLD);
+		    esh_signal_unblock(SIGCHLD);
                 }
-
+		
                 // bg
                 if (command_type == 4) {
-
+		    
                     pipeline->status = BACKGROUND;
-
+		    
                     if (kill(-pipeline->pgrp, SIGCONT) < 0) {
                         esh_sys_fatal_error("SIGCONT Error");
                     }
@@ -538,11 +435,11 @@ main(int ac, char *av[])
              */
 
             esh_signal_sethandler(SIGCHLD, child_handler);
-
-			jid++;
-			if(list_empty(&current_jobs)) {
-				jid = 1;
-			}
+	    
+	    jid++;
+	    if (list_empty(&current_jobs)) {
+		jid = 1;
+	    }
             pipeline->jid = jid;
             pipeline->pgrp = -1;
             pid_t pid;
