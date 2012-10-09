@@ -444,11 +444,37 @@ main(int ac, char *av[])
             pipeline->pgrp = -1;
             pid_t pid;
 
+	    // piping
+	    int process_count = 0;
+	    int *mypipe;
+	    size_t num_of_pipes;
+	    bool is_piped;
+
+	    if (list_size(&pipeline->commands) > 1)
+		is_piped = true;
+	    else
+		is_piped = false;
+
+	    if (is_piped) {
+
+		num_of_pipes = (list_size(&pipeline->commands) - 1) * 2;
+
+		mypipe = malloc(num_of_pipes * sizeof(int));
+		
+		int i;
+		for (i = 0; i < num_of_pipes; i++) {	
+		    if (pipe(mypipe + i * 2) < 0)
+			esh_sys_fatal_error("Pipe Error");
+		}
+
+		if (pipe(mypipe) < 0)
+		    esh_sys_fatal_error("Pipe Error");
+	    }
+	    
             struct list_elem *e;
             for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-
+		
                 struct esh_command *command = list_entry(e, struct esh_command, elem);
-
 
                 esh_signal_block(SIGCHLD);
                 pid = fork();
@@ -472,33 +498,54 @@ main(int ac, char *av[])
                         pipeline->status = FOREGROUND;
                     }
 
-                    else {
+                    else
                         pipeline->status = BACKGROUND;
-                    }
 
-                    // signal handling here ---- more sig handles?
+		    if (is_piped) {
 
-                    if (execvp(command->argv[0], command->argv) < 0) {
+			// if not first process in the pipeline
+			if (e != list_begin(&pipeline->commands)) {
+			    if (dup2(mypipe[(process_count - 1) * 2], 0) < 0)
+				esh_sys_fatal_error("dup2  error");
+			    close(mypipe[process_count * 2 + 1]);
+			}
+
+			// if not the last process in the pipeline
+			else if (e != list_end(&pipeline->commands)) {
+			    if (dup2(mypipe[process_count * 2 + 1], 1) < 0)
+				esh_sys_fatal_error("dup2 error");
+			    close(mypipe[(process_count - 1) * 2]);
+			}
+		    }
+
+                    if (execvp(command->argv[0], command->argv) < 0)
                         esh_sys_fatal_error("Exec Error");
-                    }
                 }
 
-                else if (pid < 0) {
+                else if (pid < 0)
                     esh_sys_fatal_error("Fork Error");
-                }
 
                 // parent
                 else {
-                    if (pipeline->pgrp == -1) {
+		    
+                    if (pipeline->pgrp == -1)
                         pipeline->pgrp = pid;
-                    }
 
-                    if (setpgid(pid, pipeline->pgrp) < 0) {
+                    if (setpgid(pid, pipeline->pgrp) < 0)
                         esh_sys_fatal_error("Error Setting Process Group");
-                    }
                 }
-            }
 
+		// close pipe fd -- could be that it goes into parent else { }
+		// -- wrong loop
+		if (is_piped) {
+		    int i;
+		    for (i = 0; i < num_of_pipes * 2; i++)
+			close(mypipe[i]);
+		}
+		
+		process_count++;
+            }
+	    
             if (pipeline->bg_job) {
                 pipeline->status = BACKGROUND;
                 printf("[%d] %d\n", pipeline->jid, pipeline->pgrp);
@@ -507,9 +554,13 @@ main(int ac, char *av[])
             e = list_pop_front(&cline->pipes);
             list_push_back(&current_jobs, e);
 
+	    // put wait in a loop for piping
             if (!pipeline->bg_job) {
                 wait_for_job(cline, pipeline, shell_tty);
             }
+
+	    if (is_piped)
+		free(mypipe);
 
             esh_signal_unblock(SIGCHLD);
         }
