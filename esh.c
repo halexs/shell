@@ -67,7 +67,7 @@ static struct list * get_jobs(void)
 }
 
 /*
-v * Searches the pipeline and returns the job corresponding to jid
+ * Searches the pipeline and returns the job corresponding to jid
  * Returns the job, or NULL if not found
  */
 static struct esh_pipeline * get_job_from_jid(int jid)
@@ -130,7 +130,7 @@ static void print_job_commands(struct list jobs)
 	    printf("| ");
     }
 
-    printf(")");
+    printf(")\n");
 }
 
 static void print_single_job(struct esh_pipeline *pipeline)
@@ -168,40 +168,42 @@ static void change_job_status(pid_t pid, int status)
 	    
 	    struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
 	    
-	    if (pipeline-> pgrp == pid) {
-		
+	    if (pipeline->pgrp == pid) {
+
 		if (WIFSTOPPED(status)) {
-		    pipeline->status = STOPPED;
-		    
-		    if (kill(-pipeline->pgrp, SIGSTOP) < 0)
-			esh_sys_fatal_error("kill SIGTSTOP error");
-		    
-		    printf("\n[%d]+ Stopped      ", pipeline->jid);
-		    print_job_commands(current_jobs);
-		}		
-
-		/* if (WIFSTOPPED(status)) { */
-		/*     pipeline->status = STOPPED; */
-		/*     struct list_elem *e = list_pop_front(&cline->pipes); */
-		/*     list_push_front(&current_jobs, e); */
-		/*     printf("\n[%d]+ Stopped      ", pipeline->jid); */
-		/*     print_job_commands(current_jobs); */
-		/* } */
-
-		if (WIFEXITED(status))
-		    list_remove(e);
+			pipeline->status = STOPPED;
+			printf("\n[%d]+ Stopped      ", pipeline->jid);
+			print_job_commands(current_jobs);
+		}
 		
-		else if (WIFSIGNALED(status))
+		if (WTERMSIG(status) == 9) {
 		    list_remove(e);
+		}
+
+		else
+		    printf("\n");
+
+		// normal termination
+		if (WIFEXITED(status)) {
+		    // if job was bg, then print out done stuff (maybe?)		    
+		    list_remove(e);
+		}
+		
+		else if (WIFSIGNALED(status)) {
+		    list_remove(e);
+		}
 		
 		else if (WIFCONTINUED(status))
 		    list_remove(e);
+
+		if (list_empty(&current_jobs))
+		    jid = 0;
 	    }
 	}
     }
     
     else if (pid < 0)
-	esh_sys_fatal_error("Error in wait in child handler");
+	esh_sys_fatal_error("Error in wait");
 }
 
 /*
@@ -262,25 +264,31 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
     /* 	printf("\n[%d]+ Stopped      ", pipeline->jid); */
     /* 	print_job_commands(current_jobs); */
     /* } */
-    
+
     int status;
-    waitpid(-1, &status, WUNTRACED);
-    give_terminal_to(getpgrp(), shell_tty);
-
-    if (WIFSTOPPED(status)) {
-    	pipeline->status = STOPPED;
-    	struct list_elem *e = list_pop_front(&cline->pipes);
-    	list_push_front(&current_jobs, e);
-    	printf("\n[%d]+ Stopped      ", pipeline->jid);
-    	print_job_commands(current_jobs);
+    pid_t pid;
+    pid = waitpid(-1, &status, WUNTRACED);
+    // while ((pid = waitpid(-1, &status, WUNTRACED) > 0)) {
+    if (pid > 0) {
+	give_terminal_to(getpgrp(), shell_tty);
+	change_job_status(pid, status);
     }
-		
-    if (WTERMSIG(status))
-    	printf("\n");
-
-    if (WIFEXITED(status)) {
-	// remove element from list here
-    }
+    /* if (WIFSTOPPED(status)) { */
+    /* 	pipeline->status = STOPPED; */
+    /* 	/\* struct list_elem *e = list_pop_front(&cline->pipes); *\/ */
+    /* 	/\* list_push_front(&current_jobs, e); *\/ */
+    /* 	printf("\n[%d]+ Stopped      ", pipeline->jid); */
+    /* 	print_job_commands(current_jobs); */
+    /* } */
+    
+    /* if (WTERMSIG(status)) */
+    /* 	printf("\n"); */
+    
+    /* if (WIFEXITED(status)) { */
+	
+    /* 	// remove element from list here */
+    /* } */
+    //}
 }
 
 /* The shell object plugins use.
@@ -322,10 +330,6 @@ main(int ac, char *av[])
     setpgid(0, 0);
     struct termios *shell_tty = esh_sys_tty_init();
     give_terminal_to(getpgrp(), shell_tty);
-
-    /*
-     * TODO: set up signal handlers here
-     */
 
     /* Read/eval loop. */
     for (;;) {
@@ -382,29 +386,39 @@ main(int ac, char *av[])
 	    
 	    if (!list_empty(&current_jobs)) {
 
-		printf("Current Jobs: %lu\n", list_size(&current_jobs));
-		
 		if (commands->argv[1] != NULL && commands->argv[2] != NULL) {
 
 		    int jid_needed = atoi(commands->argv[2]);
 
-		    struct list_elem *e;
-		    for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
-
-			struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
-
-			if (pipeline->jid == jid_needed) {
-
-			    print_single_job(pipeline);
-			    give_terminal_to(pipeline->pgrp, shell_tty);
-
-			    // check if SIGCONT is needed in the future -- if (cont) perhaps
-			    if (kill (- pipeline->pgrp, SIGCONT) < 0)
-				esh_sys_fatal_error("fg error: kill SIGCONT");
-			    
-			    wait_for_job(cline, pipeline, shell_tty);
-			}
+		    struct esh_pipeline *pipeline = get_job_from_jid(jid_needed);
+		    if (pipeline != NULL) {
+			print_single_job(pipeline);
+			give_terminal_to(pipeline->pgrp, shell_tty);
+			
+			// check if SIGCONT is needed in the future -- if (cont) perhaps
+			if (kill (-pipeline->pgrp, SIGCONT) < 0)
+			    esh_sys_fatal_error("fg error: kill SIGCONT");
+			
+			wait_for_job(cline, pipeline, shell_tty);
 		    }
+		    
+		    /* struct list_elem *e; */
+		    /* for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) { */
+
+		    /* 	struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem); */
+
+		    /* 	if (pipeline->jid == jid_needed) { */
+
+		    /* 	    print_single_job(pipeline); */
+		    /* 	    give_terminal_to(pipeline->pgrp, shell_tty); */
+
+		    /* 	    // check if SIGCONT is needed in the future -- if (cont) perhaps */
+		    /* 	    if (kill (-pipeline->pgrp, SIGCONT) < 0) */
+		    /* 		esh_sys_fatal_error("fg error: kill SIGCONT"); */
+
+		    /* 	    wait_for_job(cline, pipeline, shell_tty); */
+		    /* 	} */
+		    /* } */
 		}
 		
 		else {
@@ -418,78 +432,53 @@ main(int ac, char *av[])
 		    // check if SIGCONT is needed in the future -- if (cont) perhaps
 		    if (kill (- pipeline->pgrp, SIGCONT) < 0)
 			esh_sys_fatal_error("fg error: kill SIGCONT");
-		    
+
 		    wait_for_job(cline, pipeline, shell_tty);
 		}		
 	    }
 	}
 
-	// bg, kill, stop
+	// bg, stop
 	else if (command_type == 4 || command_type == 5 || command_type == 6) {
 
-	    /*
-	     * FIX THESE IDS must comply with delcaration above
-	     */
-	    int job_id = -1;
-	    int pgrp_id;
-	    
-	    if(!list_empty(&current_jobs)) {
-		if(commands->argv[1] == NULL)
-		    {
+	    if (!list_empty(&current_jobs)) {
+
+		int jobid_arg = -1;
+				
+		if (commands->argv[1] == NULL) {		  
 			struct list_elem *e = list_begin(&current_jobs);
-			struct esh_pipeline *recent_pipeline = list_entry(e, struct esh_pipeline, elem);
-			job_id = recent_pipeline->jid;
-		    } else {
-		    if(strncmp(commands->argv[1], "%", 1) == 0) {
-			char *temp = (char*) malloc(5);
-			strcpy(temp, commands->argv[1]+1);
-			job_id = atoi(temp);
-		    } else {
-			pgrp_id = atoi(commands->argv[1]);
-		    }
+			struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
+			jobid_arg = pipeline->jid;
 		}
+
+		else
+		    jobid_arg = atoi(commands->argv[2]);
 				
 		struct esh_pipeline *pipeline;
-		if (job_id != -1) {
-		    pipeline = get_job_from_jid(job_id);
-		} else {
-		    pipeline = get_job_from_pgrp(pgrp_id);
-		}
-				
-		if(command_type == 4) {
+		pipeline = get_job_from_jid(jobid_arg);
+
+		// bg
+		if (command_type == 4) {
+
 		    pipeline->status = BACKGROUND;
-		    if(kill(-pipeline->pgrp, SIGCONT) < 0) {
-			perror("Kill SIGCONT ");
-		    }
+		    
+		    if (kill(-pipeline->pgrp, SIGCONT) < 0)
+			esh_sys_fatal_error("SIGCONT Error");
+
 		    print_job_commands(current_jobs);
+		    printf("\n");
 		}
-				
-		if(command_type == 5) {
-		    esh_signal_block(SIGCHLD);
-		    if(kill(-pipeline->pgrp, SIGKILL) < 0) {
-			perror("Kill SIGKILL ");
-		    }
-					
-		    struct list_elem *e;
-		    for(e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e))
-			{
-			    struct esh_pipeline *kill_pipeline = list_entry(e, struct esh_pipeline, elem);
-							
-			    if(kill_pipeline->pgrp == pipeline->pgrp) {
-				list_remove(e);
-			    }
-			}
-		    esh_signal_unblock(SIGCHLD);
-		    print_job_commands(current_jobs);
+
+		// kill
+		else if (command_type == 5) {
+		    if (kill(-pipeline->pgrp, SIGKILL) < 0)
+			esh_sys_fatal_error("SIGKILL Error");		    		    
 		}
-				
-		if(command_type == 6) {
-		    pipeline->status = STOPPED;
-		    if(kill(-pipeline->pgrp, SIGSTOP) < 0) {
-			perror("Kill SIGSTOP ");
-		    }
-		    printf("\n[%d]+ Stopped \t ", pipeline->jid);
-		    print_job_commands(current_jobs);
+		
+		// stop
+		else if (command_type == 6) {
+		    if (kill(-pipeline->pgrp, SIGSTOP) < 0)
+			esh_sys_fatal_error("SIGSTOP Error");
 		}				
 	    }
 	}
@@ -500,6 +489,8 @@ main(int ac, char *av[])
 	     * Don't think this is pipeline friendly.
 	     */
 
+	    esh_signal_sethandler(SIGCHLD, child_handler);
+	    
 	    jid++;
 	    pipeline->jid = jid;
 	    pipeline->pgrp = -1;
@@ -510,7 +501,7 @@ main(int ac, char *av[])
 
 		struct esh_command *command = list_entry(e, struct esh_command, elem);
 
-		esh_signal_sethandler(SIGCHLD, child_handler);
+
 		esh_signal_block(SIGCHLD);
 		pid = fork();
 
@@ -554,15 +545,16 @@ main(int ac, char *av[])
 		}
 	    }
 
-	    if (!pipeline->bg_job)
-		wait_for_job(cline, pipeline, shell_tty);
-
-	    else {
+	    if (pipeline->bg_job) {
 		pipeline->status = BACKGROUND;
 		printf("[%d] %d\n", pipeline->jid, pipeline->pgrp);
-		e = list_pop_front(&cline->pipes);
-		list_push_front(&current_jobs, e);
 	    }
+
+	    e = list_pop_front(&cline->pipes);
+	    list_push_front(&current_jobs, e);
+
+	    if (!pipeline->bg_job)
+		wait_for_job(cline, pipeline, shell_tty);
 
 	    esh_signal_unblock(SIGCHLD);
 	}
