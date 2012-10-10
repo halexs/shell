@@ -257,16 +257,31 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
 /*
  * Wait
  */
-static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pipeline, struct termios *shell_tty)
+static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pipeline, struct termios *shell_tty, bool is_piped)
 {
     int status;
     pid_t pid;
-    pid = waitpid(-1, &status, WUNTRACED);
+
+    if (is_piped) {
+    
+    //    
+
+    while ((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
  
-    if (pid > 0) {
+	//if (pid > 0) {
         give_terminal_to(getpgrp(), shell_tty);
         change_job_status(pid, status);
     }
+    }
+
+    else {
+	pid = waitpid(-1, &status, WUNTRACED);
+	if (pid > 0) {
+	    give_terminal_to(getpgrp(), shell_tty);
+	    change_job_status(pid, status);
+	}
+    }
+	    
 }
 
 /* The shell object plugins use.
@@ -395,7 +410,7 @@ main(int ac, char *av[])
                         esh_sys_fatal_error("fg error: kill SIGCONT");
                     }
 		    
-                    wait_for_job(cline, pipeline, shell_tty);
+                    wait_for_job(cline, pipeline, shell_tty, false);
 		    esh_signal_unblock(SIGCHLD);
                 }
 		
@@ -457,13 +472,13 @@ main(int ac, char *av[])
 
 	    if (is_piped) {
 
-		num_of_pipes = (list_size(&pipeline->commands) - 1) * 2;
+		num_of_pipes = list_size(&pipeline->commands) - 1;
 
-		mypipe = malloc(num_of_pipes * sizeof(int));
+		mypipe = malloc(num_of_pipes * 2 * sizeof(int));
 		
 		int i;
 		for (i = 0; i < num_of_pipes; i++) {	
-		    if (pipe(mypipe + i * 2) < 0)
+		    if (pipe(mypipe + (i * 2)) < 0)
 			esh_sys_fatal_error("Pipe Error");
 		}
 
@@ -505,17 +520,23 @@ main(int ac, char *av[])
 
 			// if not first process in the pipeline
 			if (e != list_begin(&pipeline->commands)) {
-			    if (dup2(mypipe[(process_count - 1) * 2], 0) < 0)
+			    if (dup2(mypipe[2 * process_count - 2], 0) < 0)
 				esh_sys_fatal_error("dup2  error");
-			    close(mypipe[process_count * 2 + 1]);
+			    close(mypipe[2 * process_count - 1]);
+			    close(mypipe[2 * process_count - 2]);
 			}
 
 			// if not the last process in the pipeline
 			else if (e != list_end(&pipeline->commands)) {
-			    if (dup2(mypipe[process_count * 2 + 1], 1) < 0)
+			    close(mypipe[2 * process_count]);
+			    if (dup2(mypipe[2 * process_count + 1], 1) < 0)
 				esh_sys_fatal_error("dup2 error");
-			    close(mypipe[(process_count - 1) * 2]);
+			    close(mypipe[2 * process_count + 1]);
 			}
+
+			int i;
+			for(i = 0; i < num_of_pipes * 2; i++)
+			    close(mypipe[i]);
 		    }
 
                     if (execvp(command->argv[0], command->argv) < 0)
@@ -533,16 +554,14 @@ main(int ac, char *av[])
 
                     if (setpgid(pid, pipeline->pgrp) < 0)
                         esh_sys_fatal_error("Error Setting Process Group");
+
+		    // if not first process in the pipeline
+		    if (e != list_begin(&pipeline->commands)) {
+			close(mypipe[2*process_count-1]);
+			close(mypipe[2*process_count-2]);
+		    }
                 }
 
-		// close pipe fd -- could be that it goes into parent else { }
-		// -- wrong loop
-		if (is_piped) {
-		    int i;
-		    for (i = 0; i < num_of_pipes * 2; i++)
-			close(mypipe[i]);
-		}
-		
 		process_count++;
             }
 	    
@@ -554,10 +573,8 @@ main(int ac, char *av[])
             e = list_pop_front(&cline->pipes);
             list_push_back(&current_jobs, e);
 
-	    // put wait in a loop for piping
-            if (!pipeline->bg_job) {
-                wait_for_job(cline, pipeline, shell_tty);
-            }
+            if (!pipeline->bg_job)
+                wait_for_job(cline, pipeline, shell_tty, is_piped);
 
 	    if (is_piped)
 		free(mypipe);
