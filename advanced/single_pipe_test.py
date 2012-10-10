@@ -22,8 +22,21 @@ if hasattr(def_module, 'logfile'):
 c = pexpect.spawn(def_module.shell, drainpty=True, logfile=logfile)
 atexit.register(force_shell_termination, shell_process=c)
 
+# set timeout for all following 'expect*' calls to 2 seconds
+c.timeout = 2
 
-assert 1 == 0, "Unimplemented functionality"
+# ensure that shell prints expected prompt
+assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
+
+# run a command that uses a single pipe
+c.sendline("echo -e 'orange \npeach \ncherry' >> fruit_single_pipe | wc -w fruit_single_pipe")
+
+# should output the number of words and name of file
+assert c.expect_exact("3 fruit_single_pipe\n") == 0, "Shell did not print the expected prompt"
+
+#exit
+c.sendline("exit")
+assert c.expect_exact("exit\r\n") == 0, "Shell output extraneous characters"
 
 
 shellio.success()
