@@ -29,10 +29,10 @@ c.timeout = 2
 assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
 
 # run a command that uses a single pipe
-c.sendline("echo -e 'orange \npeach \ncherry' | sort > fruit_double_pipe | wc -w fruit_double_pipe")
+c.sendline("ls | grep esh | wc -w")
 
 # should output the number of words and name of file
-assert c.expect_exact("3 fruit_double_pipe\n") == 0, "Shell did not print the expected prompt"
+assert c.expect_exact("15") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")

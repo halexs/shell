@@ -29,10 +29,17 @@ c.timeout = 2
 assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
 
 # run a command that uses a single pipe
-c.sendline("echo -e 'orange \npeach \ncherry' >> fruit_single_pipe | wc -w fruit_single_pipe")
+c.sendline("echo hello world! | wc")
 
-# should output the number of words and name of file
-assert c.expect_exact("3 fruit_single_pipe\n") == 0, "Shell did not print the expected prompt"
+# output wc of "hello world!"
+assert c.expect_exact("      1       2      13") == 0, " Shell did not print the expected prompt"
+
+# run a command that uses a singl epipe
+c.sendline("grep mail /etc/passwd | cut -d: -f 6")
+
+# finds the line that contains mail in /etc/passwd, delimits it starting from the : and gets field 6 of the line
+# which is the home dir of that user
+assert c.expect_exact("/var/spool/mail") == 0, "SHell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
