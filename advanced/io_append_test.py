@@ -39,19 +39,19 @@ c.timeout = 2
 assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
 
 # run a command that appends to the file
-c.sendline("echo hello world! >> out_append")
+c.sendline("echo -n hello world! >> out_append")
 
-# print the content of the file test
+# print the content of the test file
 c.sendline("cat out_append")
 
-# should output the contents of the text file "test"
+# should output the contents of the text file
 assert c.expect_exact("hello world!") == 0, "Shell did not print the expected prompt"
 
 # run a second command that appends to the file
-c.sendline("echo appending >> out_append")
+c.sendline("echo I am testing append >> out_append")
 
-# should output the new content of the text file "test"
-assert c.expect("hello word! \n appending") == 0, "Shell did not print the expected prompt"
+# should output the new content of the text file
+assert c.expect_exact("hello world!I am testing append") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
