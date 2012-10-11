@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <fcntl.h>
 #include "esh-sys-utils.h"
 #include "esh.h"
 
@@ -264,7 +265,6 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
 
     if (is_piped) {
 	while ((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
-	    
 	    give_terminal_to(getpgrp(), shell_tty);
 	    change_job_status(pid, status);
 	}
@@ -464,11 +464,10 @@ main(int ac, char *av[])
 	    if (is_piped) {
 
 		num_of_pipes = list_size(&pipeline->commands) - 1;
-
 		mypipe = malloc(num_of_pipes * 2 * sizeof(int));
 		
 		int i;
-		for (i = 0; i < num_of_pipes; i++) {	
+		for (i = 0; i < num_of_pipes; i++) {
 		    if (pipe(mypipe + (i * 2)) < 0)
 			esh_sys_fatal_error("Pipe Error");
 		}
@@ -516,7 +515,7 @@ main(int ac, char *av[])
 			}
 
 			// if not the last process in the pipeline
-			else if (e != list_end(&pipeline->commands)) {
+			else if (e != list_end(&pipeline->commands)) {			    
 			    close(mypipe[2 * process_count]);
 			    if (dup2(mypipe[2 * process_count + 1], 1) < 0)
 				esh_sys_fatal_error("dup2 error");
@@ -526,6 +525,20 @@ main(int ac, char *av[])
 			int i;
 			for(i = 0; i < num_of_pipes * 2; i++)
 			    close(mypipe[i]);
+		    }
+
+		    if (command->iored_input != NULL) {
+			int in_fd = open(command->iored_input, O_RDONLY);
+			if (dup2(in_fd, 0) < 0)
+			    esh_sys_fatal_error("dup2 error");
+			close(in_fd);
+		    }
+
+		    if (command->iored_output != NULL) {
+			int out_fd = open(command->iored_output, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+			if (dup2(out_fd, 0) < 0)
+			    esh_sys_fatal_error("dup2 error");
+			close(out_fd);
 		    }
 
                     if (execvp(command->argv[0], command->argv) < 0)
@@ -553,7 +566,7 @@ main(int ac, char *av[])
                 }
 
 		process_count++;
-            }
+	    }
 
             if (pipeline->bg_job) {
                 pipeline->status = BACKGROUND;

@@ -52,7 +52,7 @@ c.sendline(":wq")
 c.sendline("cat < test2")
 
 # should output the contents of the text file "test2"
-assert c.expect_exact("hello world\r\n") == 0, "Shell did not print the expected prompt"
+assert c.expect_exact("hello world") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")

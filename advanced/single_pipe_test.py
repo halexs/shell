@@ -39,7 +39,13 @@ c.sendline("grep mail /etc/passwd | cut -d: -f 6")
 
 # finds the line that contains mail in /etc/passwd, delimits it starting from the : and gets field 6 of the line
 # which is the home dir of that user
-assert c.expect_exact("/var/spool/mail") == 0, "SHell did not print the expected prompt"
+assert c.expect_exact("/var/spool/mail") == 0, "Shell did not print the expected prompt"
+
+# run another pipeline
+c.sendline("echo /this/is/my/complicated/path/here | cut -d/ -f-4,6-")
+
+# and check for output again
+assert c.expect_exact("/this/is/my/path/here") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
