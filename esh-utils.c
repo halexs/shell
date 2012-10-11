@@ -20,11 +20,11 @@ struct list esh_plugin_list;
 
 /* Create new command structure and initialize first command word,
  * and/or input or output redirect file. */
-struct esh_command * 
-esh_command_create(char ** argv, 
-                   char *iored_input, 
-                   char *iored_output, 
-                   bool append_to_output)
+struct esh_command *
+esh_command_create(char ** argv,
+		   char *iored_input,
+		   char *iored_output,
+		   bool append_to_output)
 {
     struct esh_command *cmd = malloc(sizeof *cmd);
 
@@ -54,7 +54,7 @@ void
 esh_pipeline_finish(struct esh_pipeline *pipe)
 {
     if (list_size(&pipe->commands) == 0)
-        return;
+	return;
 
     struct esh_command *first;
     first = list_entry(list_front(&pipe->commands), struct esh_command, elem);
@@ -94,92 +94,92 @@ esh_command_print(struct esh_command *cmd)
 
     printf("  Command:");
     while (*p)
-        printf(" %s", *p++);
+	printf(" %s", *p++);
 
     printf("\n");
 
     if (cmd->iored_output)
-        printf("  stdout %ss to %s\n", 
-                cmd->append_to_output ? "append" : "write",
-                cmd->iored_output);
+	printf("  stdout %ss to %s\n",
+	       cmd->append_to_output ? "append" : "write",
+	       cmd->iored_output);
 
     if (cmd->iored_input)
-        printf("  stdin reads from %s\n", cmd->iored_input);
+	printf("  stdin reads from %s\n", cmd->iored_input);
 }
-  
+
 /* Print esh_pipeline structure to stdout */
 void
 esh_pipeline_print(struct esh_pipeline *pipe)
 {
     int i = 1;
-    struct list_elem * e = list_begin (&pipe->commands); 
+    struct list_elem * e = list_begin (&pipe->commands);
 
     printf(" Pipeline\n");
     for (; e != list_end (&pipe->commands); e = list_next (e)) {
-        struct esh_command *cmd = list_entry(e, struct esh_command, elem);
+	struct esh_command *cmd = list_entry(e, struct esh_command, elem);
 
-        printf(" %d. ", i++);
-        esh_command_print(cmd);
+	printf(" %d. ", i++);
+	esh_command_print(cmd);
     }
 
     if (pipe->bg_job)
-        printf("  - is a background job\n");
+	printf("  - is a background job\n");
 }
 
 /* Print esh_command_line structure to stdout */
-void 
+void
 esh_command_line_print(struct esh_command_line *cmdline)
 {
-    struct list_elem * e = list_begin (&cmdline->pipes); 
+    struct list_elem * e = list_begin (&cmdline->pipes);
 
     printf("Command line\n");
     for (; e != list_end (&cmdline->pipes); e = list_next (e)) {
-        struct esh_pipeline *pipe = list_entry(e, struct esh_pipeline, elem);
+	struct esh_pipeline *pipe = list_entry(e, struct esh_pipeline, elem);
 
-        printf(" ------------- \n");
-        esh_pipeline_print(pipe);
+	printf(" ------------- \n");
+	esh_pipeline_print(pipe);
     }
     printf("==========================================\n");
 }
 
 /* Deallocation functions. */
-void 
+void
 esh_command_line_free(struct esh_command_line *cmdline)
 {
-    struct list_elem * e = list_begin (&cmdline->pipes); 
+    struct list_elem * e = list_begin (&cmdline->pipes);
 
     for (; e != list_end (&cmdline->pipes); ) {
-        struct esh_pipeline *pipe = list_entry(e, struct esh_pipeline, elem);
-        e = list_remove(e);
-        esh_pipeline_free(pipe);
+	struct esh_pipeline *pipe = list_entry(e, struct esh_pipeline, elem);
+	e = list_remove(e);
+	esh_pipeline_free(pipe);
     }
     free(cmdline);
 }
 
-void 
+void
 esh_pipeline_free(struct esh_pipeline *pipe)
 {
-    struct list_elem * e = list_begin (&pipe->commands); 
+    struct list_elem * e = list_begin (&pipe->commands);
 
     for (; e != list_end (&pipe->commands); ) {
-        struct esh_command *cmd = list_entry(e, struct esh_command, elem);
-        e = list_remove(e);
-        esh_command_free(cmd);
+	struct esh_command *cmd = list_entry(e, struct esh_command, elem);
+	e = list_remove(e);
+	esh_command_free(cmd);
     }
     free(pipe);
 }
 
-void 
+void
 esh_command_free(struct esh_command * cmd)
 {
     char ** p = cmd->argv;
     while (*p) {
-        free(*p++);
+	free(*p++);
     }
     if (cmd->iored_input)
-        free(cmd->iored_input);
+	free(cmd->iored_input);
     if (cmd->iored_output)
-        free(cmd->iored_output);
+	free(cmd->iored_output);
     free(cmd->argv);
     free(cmd);
 }
@@ -195,15 +195,15 @@ load_plugin(char *modname)
 
     void *handle = dlopen(modname, RTLD_LAZY);
     if (handle == NULL) {
-        fprintf(stderr, "Could not open %s: %s\n", modname, dlerror());
-        return NULL;
+	fprintf(stderr, "Could not open %s: %s\n", modname, dlerror());
+	return NULL;
     }
 
     struct esh_plugin * p = dlsym(handle, PSH_MODULE_NAME);
     if (p == NULL) {
-        fprintf(stderr, "%s does not define %s\n", modname, PSH_MODULE_NAME);
-        dlclose(handle);
-        return NULL;
+	fprintf(stderr, "%s does not define %s\n", modname, PSH_MODULE_NAME);
+	dlclose(handle);
+	return NULL;
     }
 
     printf("done.\n");
@@ -211,8 +211,8 @@ load_plugin(char *modname)
 }
 
 static bool sort_by_rank (const struct list_elem *a,
-                          const struct list_elem *b,
-                          void *aux __attribute__((unused)))
+			  const struct list_elem *b,
+			  void *aux __attribute__((unused)))
 {
     struct esh_plugin * pa =  list_entry(a, struct esh_plugin, elem);
     struct esh_plugin * pb =  list_entry(b, struct esh_plugin, elem);
@@ -220,32 +220,32 @@ static bool sort_by_rank (const struct list_elem *a,
 }
 
 /* Load plugins from directory dirname */
-void 
+void
 esh_plugin_load_from_directory(char *dirname)
 {
     DIR * dir = opendir(dirname);
     if (dir == NULL) {
-        perror("opendir");
-        return;
+	perror("opendir");
+	return;
     }
 
     struct dirent * dentry;
     while ((dentry = readdir(dir)) != NULL) {
-        if (!strstr(dentry->d_name, ".so"))
-            continue;
+	if (!strstr(dentry->d_name, ".so"))
+	    continue;
 
-        char modname[PATH_MAX + 1];
-        snprintf(modname, sizeof modname, "%s/%s", dirname, dentry->d_name);
+	char modname[PATH_MAX + 1];
+	snprintf(modname, sizeof modname, "%s/%s", dirname, dentry->d_name);
 
-        struct esh_plugin * plugin = load_plugin(modname);
-        if (plugin)
-            list_push_back(&esh_plugin_list, &plugin->elem);
+	struct esh_plugin * plugin = load_plugin(modname);
+	if (plugin)
+	    list_push_back(&esh_plugin_list, &plugin->elem);
     }
     closedir(dir);
 }
 
 /* Initialize loaded plugins */
-void 
+void
 esh_plugin_initialize(struct esh_shell *shell)
 {
     /* Sort plugins and call init() method. */
@@ -253,9 +253,9 @@ esh_plugin_initialize(struct esh_shell *shell)
 
     struct list_elem * e = list_begin(&esh_plugin_list);
     for (; e != list_end(&esh_plugin_list); e = list_next(e)) {
-        struct esh_plugin *plugin = list_entry(e, struct esh_plugin, elem);
-        if (plugin->init)
-            plugin->init(shell);
+	struct esh_plugin *plugin = list_entry(e, struct esh_plugin, elem);
+	if (plugin->init)
+	    plugin->init(shell);
     }
 }
 
