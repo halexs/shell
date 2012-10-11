@@ -177,13 +177,13 @@ static void change_job_status(pid_t pid, int status)
                 if (WIFSTOPPED(status)) {
 
 		    if (WSTOPSIG(status) == 22) 
-		    	pipeline->status = NEEDSTERMINAL;
+		    	pipeline->status = STOPPED;
 
-		    else 
-			pipeline->status = STOPPED;
-		    		    
-		    printf("\n[%d]+ Stopped      ", pipeline->jid);
-		    print_job_commands(current_jobs);
+		    else {
+			pipeline->status = STOPPED;			
+			printf("\n[%d]+ Stopped      ", pipeline->jid);
+			print_job_commands(current_jobs);
+		    }
                 }
                 
                 if (WTERMSIG(status) == 9) {

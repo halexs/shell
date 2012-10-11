@@ -73,17 +73,23 @@ c.sendline(":quit");
 # when moving a job in the foreground, bash outputs its command line
 assert c.expect_exact(cmdline) == 0, "Shell did not report the job moved into the foreground"
 
-
-# run emacs in bg
+#Add emacs in background
 c.sendline("emacs &")
 
-#snag the jobid and pid of the emacs command
+# pick up the background job output
 (jobid, pid) = shellio.parse_regular_expression(c, def_module.bgjob_regex)
 
-# check jobs command has emacs properly
-(jobid, statusmsg, cmdline) = shellio.parse_regular_expression(c, def_module.job_status_regex)
-assert statusmsg == def_module.jobs_status_msg['stopped'], "Shell did not report stopped job"
+# check for prompt
+assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
 
+# check the jobs list
+c.sendline(def_module.builtin_commands['jobs'])
+
+# Check the status message
+(jobid, status_message, command_line) = \
+            shellio.parse_regular_expression(c, def_module.job_status_regex)
+
+assert  (status_message == def_module.jobs_status_msg['stopped'])
 
 
 #exit
