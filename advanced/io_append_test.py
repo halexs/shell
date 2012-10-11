@@ -51,7 +51,7 @@ assert c.expect_exact("hello world!") == 0, "Shell did not print the expected pr
 c.sendline("echo appending >> out_append")
 
 # should output the new content of the text file "test"
-assert c.expect("hello word!\nappending") == 0, "Shell did not print the expected prompt"
+assert c.expect("hello word! \n appending") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
