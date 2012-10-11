@@ -1,3 +1,30 @@
+Student Information
+-------------------
+Nayef Copty - nayefc
+K Alnajar - kar
 
-This directory contains skeleton files for the 'esh' project.
+How to execute the shell
+------------------------
+Run ./esh. We haven't changed that.
 
+Important Notes
+---------------
+There are no important notes to consider. Everything passes the tests.
+
+Description of Base Functionality
+---------------------------------
+
+jobs:
+fg:
+bg:
+kill:
+stop:
+^C:
+^Z:
+
+Description of Extended Functionality
+-------------------------------------
+
+I/O Redirection:
+Pipes:
+Exclusive Access:
