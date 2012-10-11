@@ -263,10 +263,10 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
     int status;
     pid_t pid;
     
-	if((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
-	    give_terminal_to(getpgrp(), shell_tty);
-	    change_job_status(pid, status);
-	}
+    if ((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
+	give_terminal_to(getpgrp(), shell_tty);
+	change_job_status(pid, status);
+    }
 }
 
 /* The shell object plugins use.
@@ -293,13 +293,13 @@ main(int ac, char *av[])
     /* Process command-line arguments. See getopt(3) */
     while ((opt = getopt(ac, av, "hp:")) > 0) {
         switch (opt) {
-            case 'h':
-                usage(av[0]);
-                break;
-                
-            case 'p':
-                esh_plugin_load_from_directory(optarg);
-                break;
+	case 'h':
+	    usage(av[0]);
+	    break;
+            
+	case 'p':
+	    esh_plugin_load_from_directory(optarg);
+	    break;
         }
     }
     
@@ -310,7 +310,7 @@ main(int ac, char *av[])
     
     /* Read/eval loop. */
     for (;;) {
-        
+	
         /* Do not output a prompt unless shell's stdin is a terminal */
         char * prompt = isatty(0) ? shell.build_prompt() : NULL;
         char * cmdline = shell.readline(prompt);
@@ -346,7 +346,7 @@ main(int ac, char *av[])
         
         // jobs
         else if (command_type == 2) {
-            
+	    
             char *statusStrings[] = {"Foreground","Running","Stopped", "Needs Terminal"};
             struct list_elem *e;
             for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
@@ -440,129 +440,121 @@ main(int ac, char *av[])
             esh_signal_sethandler(SIGCHLD, child_handler);
             
             jid++;
-            if (list_empty(&current_jobs)) {
+            if (list_empty(&current_jobs))
                 jid = 1;
-            }
+	    
             pipeline->jid = jid;
             pipeline->pgrp = -1;
             pid_t pid;
-			
-			//pipes
-			int oldPipe[2], newPipe[2];
+	    
+	    // pipes
+	    int oldPipe[2], newPipe[2];
             bool isPiped = false;
             
-            if (list_size(&pipeline->commands) > 1) {
+            if (list_size(&pipeline->commands) > 1)
                 isPiped = true;
-            }
             
             struct list_elem *e;
             for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-                
+		
                 struct esh_command *command = list_entry(e, struct esh_command, elem);
                 
-                //                esh_command_print(command);
-				
-				if(isPiped && list_next(e) != list_tail(&pipeline->commands)) {
-                    //					printf("new pipe created -> %s\n", command->argv[0]);
-					pipe(newPipe);
-				}
+                //esh_command_print(command);
+		
+		if(isPiped && list_next(e) != list_tail(&pipeline->commands))
+		    pipe(newPipe);
                 
                 esh_signal_block(SIGCHLD);
                 pid = fork();
                 
                 // child
                 if (pid == 0) {
-                    
+		    
                     pid = getpid();
                     command->pid = pid;
                     
-                    if (pipeline->pgrp == -1) {
+                    if (pipeline->pgrp == -1)
                         pipeline->pgrp = pid;
-                    }
                     
-                    if (setpgid(pid, pipeline->pgrp) < 0) {
+                    if (setpgid(pid, pipeline->pgrp) < 0)
                         esh_sys_fatal_error("Error Setting Process Group");
-                    }
                     
                     if (!pipeline->bg_job) {
                         give_terminal_to(pipeline->pgrp, shell_tty);
                         pipeline->status = FOREGROUND;
-                    } else {
-                        pipeline->status = BACKGROUND;
                     }
-					
-					if(isPiped && e != list_begin(&pipeline->commands)){
-                        //						printf("closing and duplicating old pipe -> %s\n", command->argv[0]);
-						close(oldPipe[1]);
-						dup2(oldPipe[0], 0);
-						close(oldPipe[0]);
-					}
+
+		    else
+                        pipeline->status = BACKGROUND;
+		    
+		    if (isPiped && e != list_begin(&pipeline->commands)) {
+			// closing and duplicating old pipe
+			close(oldPipe[1]);
+			dup2(oldPipe[0], 0);
+			close(oldPipe[0]);
+		    }
                     
-					if(isPiped && list_next(e) != list_tail(&pipeline->commands)) {
-                        //						printf("closing and duplicating new pipe -> %s\n", command->argv[0]);
-						close(newPipe[0]);
-						dup2(newPipe[1], 1);
-						close(newPipe[1]);
-					}
-					
+		    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
+                        // closing and duplicating new pipe
+			close(newPipe[0]);
+			dup2(newPipe[1], 1);
+			close(newPipe[1]);
+		    }
+		    
                     if (command->iored_input != NULL) {
                         int in_fd = open(command->iored_input, O_RDONLY);
-                        if (dup2(in_fd, 0) < 0) {
+                        if (dup2(in_fd, 0) < 0)
                             esh_sys_fatal_error("dup2 error");
-                        }
                         close(in_fd);
                     }
                     
                     if (command->iored_output != NULL) {
                         int out_fd;
-                        if (command->append_to_output) {
+                        if (command->append_to_output)
                             out_fd = open(command->iored_output, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
-                        }
-                        else {
+
+                        else 
                             out_fd = open(command->iored_output, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
-                        }
-                        if (dup2(out_fd, 1) < 0) {
+
+                        if (dup2(out_fd, 1) < 0) 
                             esh_sys_fatal_error("dup2 error");
-                        }
+
                         close(out_fd);
                     }
                     
-                    if (execvp(command->argv[0], command->argv) < 0) {
+                    if (execvp(command->argv[0], command->argv) < 0)
                         esh_sys_fatal_error("Exec Error");
-                    }
                 }
                 
-                else if (pid < 0) {
+                else if (pid < 0)
                     esh_sys_fatal_error("Fork Error");
-                }
-                
+
                 // parent
                 else {
-                    if (pipeline->pgrp == -1) {
+		    
+                    if (pipeline->pgrp == -1)
                         pipeline->pgrp = pid;
-                    }
                     
-                    if (setpgid(pid, pipeline->pgrp) < 0) {
+                    if (setpgid(pid, pipeline->pgrp) < 0)
                         esh_sys_fatal_error("Error Setting Process Group");
-                    }
 					
-					if(isPiped && e != list_begin(&pipeline->commands)){
-                        //						printf("closing old pipes -> %s\n", command->argv[0]);
-						close(oldPipe[0]);
-						close(oldPipe[1]);
-					}
-					
-					if(isPiped && list_next(e) != list_tail(&pipeline->commands)){
-                        //						printf("setting oldPipe to newPipe -> %s\n", command->argv[0]);
-						oldPipe[0] = newPipe[0];
-						oldPipe[1] = newPipe[1];
-					}
+		    if (isPiped && e != list_begin(&pipeline->commands)) {
+                        // closing old pipes
+			close(oldPipe[0]);
+			close(oldPipe[1]);
+		    }
+		    
+		    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
+                        // setting oldPipe to newPipe
+			oldPipe[0] = newPipe[0];
+			oldPipe[1] = newPipe[1];
+		    }
                     
-                    if(isPiped && list_next(e) == list_tail(&pipeline->commands)) {
+                    if (isPiped && list_next(e) == list_tail(&pipeline->commands)) {
                         close(oldPipe[0]);
-						close(oldPipe[1]);
+			close(oldPipe[1]);
                         close(newPipe[0]);
-						close(newPipe[1]);
+			close(newPipe[1]);
                     }
                 }
             }
@@ -575,9 +567,8 @@ main(int ac, char *av[])
             e = list_pop_front(&cline->pipes);
             list_push_back(&current_jobs, e);
             
-            if (!pipeline->bg_job) {
+            if (!pipeline->bg_job)
                 wait_for_job(cline, pipeline, shell_tty);
-            }
             
             esh_signal_unblock(SIGCHLD);
         }
