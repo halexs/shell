@@ -7,7 +7,9 @@
 #
 #       Requires the use of the following commands:
 #
-#       vim, echo, cat
+#       echo, cat
+#
+# ******** NOTE: Make sure you delete any out_append files before running this test *******
 #
 
 import sys, imp, atexit
@@ -37,23 +39,23 @@ c.timeout = 2
 assert c.expect(def_module.prompt) == 0, "Shell did not print expected prompt"
 
 # run a command that appends to the file
-c.sendline("echo how are you >> test3")
+c.sendline("echo hello world! >> out_append")
 
 # print the content of the file test
-c.sendline("cat test3")
+c.sendline("cat out_append")
 
 # should output the contents of the text file "test"
-assert c.expect_exact("how are you") == 0, "Shell did not print the expected prompt"
+assert c.expect_exact("hello world!") == 0, "Shell did not print the expected prompt"
 
 # run a second command that appends to the file
-c.sendline("echo quite well >> test3")
+c.sendline("echo appending >> out_append")
 
 # should output the new content of the text file "test"
-assert c.expect_exact("quite well\r\n") == 0, "Shell did not print the expected prompt"
+assert c.expect("hello word!\nappending") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
-assert c.expect_exact("exit\r\n") == 0, "Shell output extraneous characters"
+assert c.expect_exact("exit") == 0, "Shell output extraneous characters"
 
 
 shellio.success()

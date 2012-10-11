@@ -535,7 +535,11 @@ main(int ac, char *av[])
 		    }
 
 		    if (command->iored_output != NULL) {
-			int out_fd = open(command->iored_output, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+			int out_fd;
+			if (command->append_to_output)
+			    out_fd = open(command->iored_output, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+			else			    
+			    out_fd = open(command->iored_output, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
 			if (dup2(out_fd, 1) < 0)
 			    esh_sys_fatal_error("dup2 error");
 			close(out_fd);
