@@ -43,7 +43,16 @@ c.sendline("echo hey there > test")
 c.sendline("cat test")
 
 # should output the contents of the text file "test"
-assert c.expect_exact("hey there\r\n") == 0, "Shell did not print the expected prompt"
+assert c.expect_exact("hey there") == 0, "Shell did not print the expected prompt"
+
+# run a command that redirects output
+c.sendline("echo Hello World! | grep Hello > out_test")
+
+# print the content of out
+c.sendline("cat out_test")
+
+# compare output which should be Hello
+assert c.expect_exact("Hello") == 0, "Shell did not print the expected prompt"
 
 #exit
 c.sendline("exit")
