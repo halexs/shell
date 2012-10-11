@@ -30,7 +30,8 @@ job_status_regex =  "\[(\d+)\].?\s+(\S+)\s+\((.+?)\)\r\n"
 #
 jobs_status_msg = {
     'stopped' : "Stopped",
-    'running' : "Running"
+    'running' : "Running",
+    'needs terminal' : "Needs Terminal"
 }
 
 #

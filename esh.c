@@ -175,9 +175,15 @@ static void change_job_status(pid_t pid, int status)
             if (pipeline->pgrp == pid) {
                 
                 if (WIFSTOPPED(status)) {
-                    pipeline->status = STOPPED;
-                    printf("\n[%d]+ Stopped      ", pipeline->jid);
-                    print_job_commands(current_jobs);
+
+		    if (WSTOPSIG(status) == 22) 
+		    	pipeline->status = NEEDSTERMINAL;
+
+		    else 
+			pipeline->status = STOPPED;
+		    		    
+		    printf("\n[%d]+ Stopped      ", pipeline->jid);
+		    print_job_commands(current_jobs);
                 }
                 
                 if (WTERMSIG(status) == 9) {
@@ -190,7 +196,6 @@ static void change_job_status(pid_t pid, int status)
                 
                 // normal termination
                 if (WIFEXITED(status)) {
-                    // if job was bg, then print out done stuff (maybe?)
                     list_remove(e);
                 }
                 
@@ -359,8 +364,6 @@ main(int ac, char *av[])
         // fg, bg, kill, stop
         else if (command_type == 3 || command_type == 4 || command_type == 5 || command_type == 6) {
             
-            printf("command type : %i", command_type);
-            
             if (!list_empty(&current_jobs)) {
                 
                 int jobid_arg = -1;
@@ -369,15 +372,19 @@ main(int ac, char *av[])
                     struct list_elem *e = list_back(&current_jobs);
                     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
                     jobid_arg = pipeline->jid;
-                } else {
-                    if (strncmp(commands->argv[1], "%", 1) == 0) {
+                }
+
+		else {
+
+		    if (strncmp(commands->argv[1], "%", 1) == 0) {
                         char *temp = (char*) malloc(5);
                         strcpy(temp, commands->argv[1]+1);
                         jobid_arg = atoi(temp);
                         free(temp);
-                    } else {
-                        jobid_arg = atoi(commands->argv[1]);
                     }
+		    
+		    else
+                        jobid_arg = atoi(commands->argv[1]);
                 }
                 
                 struct esh_pipeline *pipeline;
@@ -391,10 +398,8 @@ main(int ac, char *av[])
                     print_single_job(pipeline);
                     give_terminal_to(pipeline->pgrp, shell_tty);
                     
-                    // check if SIGCONT is needed in the future -- if (cont) perhaps
-                    if (kill (-pipeline->pgrp, SIGCONT) < 0) {
+                    if (kill (-pipeline->pgrp, SIGCONT) < 0)
                         esh_sys_fatal_error("fg error: kill SIGCONT");
-                    }
                     
                     wait_for_job(cline, pipeline, shell_tty);
                     esh_signal_unblock(SIGCHLD);
@@ -402,31 +407,26 @@ main(int ac, char *av[])
                 
                 // bg
                 if (command_type == 4) {
-                    
-                    printf("hit bg");
-                    
-                    pipeline->status = BACKGROUND;
-                    
-                    if (kill(-pipeline->pgrp, SIGCONT) < 0) {
+
+		    pipeline->status = BACKGROUND;                    
+
+		    if (kill(-pipeline->pgrp, SIGCONT) < 0)
                         esh_sys_fatal_error("SIGCONT Error");
-                    }
-                    
-                    print_job_commands(current_jobs);
+
+		    print_job_commands(current_jobs);
                     printf("\n");
                 }
                 
                 // kill
                 else if (command_type == 5) {
-                    if (kill(-pipeline->pgrp, SIGKILL) < 0) {
+                    if (kill(-pipeline->pgrp, SIGKILL) < 0)
                         esh_sys_fatal_error("SIGKILL Error");
-                    }
                 }
                 
                 // stop
                 else if (command_type == 6) {
-                    if (kill(-pipeline->pgrp, SIGSTOP) < 0) {
+                    if (kill(-pipeline->pgrp, SIGSTOP) < 0)
                         esh_sys_fatal_error("SIGSTOP Error");
-                    }
                 }
             }
         }

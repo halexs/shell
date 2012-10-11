@@ -53,8 +53,6 @@ proc_check.count_children_timeout(c, 1, 1)
 #at this moment in time
 proc_check.count_active_children(c, 1)
 
-
-
 # send SIGTSTP to 'sleep'
 c.sendcontrol('z')
 
@@ -75,9 +73,22 @@ c.sendline(":quit");
 # when moving a job in the foreground, bash outputs its command line
 assert c.expect_exact(cmdline) == 0, "Shell did not report the job moved into the foreground"
 
+
+# run emacs in bg
+c.sendline("emacs &")
+
+#snag the jobid and pid of the emacs command
+(jobid, pid) = shellio.parse_regular_expression(c, def_module.bgjob_regex)
+
+# check jobs command has emacs properly
+(jobid, statusmsg, cmdline) = shellio.parse_regular_expression(c, def_module.job_status_regex)
+assert statusmsg == def_module.jobs_status_msg['stopped'], "Shell did not report stopped job"
+
+
+
 #exit
 c.sendline("exit")
-assert c.expect_exact("exit\r\n") == 0, "Shell output extraneous characters"
+assert c.expect_exact("exit") == 0, "Shell output extraneous characters"
 
 
 shellio.success()

@@ -50,6 +50,9 @@ assert c.expect_exact("hello world!") == 0, "Shell did not print the expected pr
 # run a second command that appends to the file
 c.sendline("echo I am testing append >> out_append")
 
+# print the content of the test file
+c.sendline("cat out_append")
+
 # should output the new content of the text file
 assert c.expect_exact("hello world!I am testing append") == 0, "Shell did not print the expected prompt"
 
