@@ -20,7 +20,7 @@ usage(char *progname)
            " -h            print this help\n"
            " -p  plugindir directory from which to load plug-ins\n",
            progname);
-    
+
     exit(EXIT_SUCCESS);
 }
 
@@ -34,14 +34,14 @@ build_prompt_from_plugins(void)
 {
     char *prompt = NULL;
     struct list_elem * e = list_begin(&esh_plugin_list);
-    
+
     for (; e != list_end(&esh_plugin_list); e = list_next(e)) {
         struct esh_plugin *plugin = list_entry(e, struct esh_plugin, elem);
-        
+
         if (plugin->make_prompt == NULL) {
             continue;
         }
-        
+
         /* append prompt fragment created by plug-in */
         char * p = plugin->make_prompt();
         if (prompt == NULL) {
@@ -52,12 +52,12 @@ build_prompt_from_plugins(void)
             free(p);
         }
     }
-    
+
     /* default prompt */
     if (prompt == NULL) {
         prompt = strdup("esh> ");
     }
-    
+
     return prompt;
 }
 
@@ -80,7 +80,7 @@ static struct esh_pipeline * get_job_from_jid(int jid) {
             return job;
         }
     }
-    
+
     return NULL;
 }
 
@@ -96,7 +96,7 @@ static struct esh_pipeline * get_job_from_pgrp(pid_t pgrp) {
             return job;
         }
     }
-    
+
     return NULL;
 }
 
@@ -116,47 +116,47 @@ static void print_job_commands(struct list jobs)
 {
     struct list_elem *e = list_begin(&jobs);
     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
-    
+
     printf("(");
     for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-        
+
         struct esh_command *command = list_entry(e, struct esh_command, elem);
-        
+
         char **argv = command->argv;
         while (*argv) {
             printf("%s ", *argv);
             argv++;
         }
-        
+
         if (list_size(&pipeline->commands) > 1) {
             printf("| ");
         }
     }
-    
+
     printf(")\n");
 }
 
 static void print_single_job(struct esh_pipeline *pipeline)
 {
     printf("(");
-    
+
     struct list_elem *e;
     for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-        
+
         struct esh_command *command = list_entry(e, struct esh_command, elem);
-        
+
         char **argv = command->argv;
         while (*argv) {
             printf("%s ", *argv);
             fflush(stdout);
             argv++;
         }
-        
+
         if (list_size(&pipeline->commands) > 1) {
             printf("| ");
         }
     }
-    
+
     printf(")\n");
 }
 
@@ -166,54 +166,55 @@ static void print_single_job(struct esh_pipeline *pipeline)
 static void change_job_status(pid_t pid, int status)
 {
     if (pid > 0) {
-        
+
         struct list_elem *e;
         for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
-            
+
             struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
-            
+
             if (pipeline->pgrp == pid) {
-                
+
                 if (WIFSTOPPED(status)) {
 
-		    if (WSTOPSIG(status) == 22) 
-		    	pipeline->status = STOPPED;
+                    if (WSTOPSIG(status) == 22) {
+                        pipeline->status = STOPPED;
+                    }
 
-		    else {
-			pipeline->status = STOPPED;			
-			printf("\n[%d]+ Stopped      ", pipeline->jid);
-			print_job_commands(current_jobs);
-		    }
+                    else {
+                        pipeline->status = STOPPED;
+                        printf("\n[%d]+ Stopped      ", pipeline->jid);
+                        print_job_commands(current_jobs);
+                    }
                 }
-                
+
                 if (WTERMSIG(status) == 9) {
                     list_remove(e);
                 }
-                
+
                 else {
                     // printf("\n");
                 }
-                
+
                 // normal termination
                 if (WIFEXITED(status)) {
                     list_remove(e);
                 }
-                
+
                 else if (WIFSIGNALED(status)) {
                     list_remove(e);
                 }
-                
+
                 else if (WIFCONTINUED(status)) {
                     list_remove(e);
                 }
-                
+
                 if (list_empty(&current_jobs)) {
                     jid = 0;
                 }
             }
         }
     }
-    
+
     else if (pid < 0) {
         esh_sys_fatal_error("Error in wait");
     }
@@ -225,7 +226,7 @@ static void change_job_status(pid_t pid, int status)
 static void child_handler(int sig, siginfo_t *info, void *_ctxt)
 {
     assert (sig == SIGCHLD);
-    
+
     int status;
     pid_t pid;
     while ((pid = waitpid(-1, &status, WUNTRACED|WNOHANG)) > 0) {
@@ -253,7 +254,7 @@ give_terminal_to(pid_t pgrp, struct termios *pg_tty_state)
     if (rc == -1) {
         esh_sys_fatal_error("tcsetpgrp: ");
     }
-    
+
     if (pg_tty_state) {
         esh_sys_tty_restore(pg_tty_state);
     }
@@ -267,10 +268,10 @@ static void wait_for_job(struct esh_command_line *cline, struct esh_pipeline *pi
 {
     int status;
     pid_t pid;
-    
+
     if ((pid = waitpid(-1, &status, WUNTRACED)) > 0) {
-	give_terminal_to(getpgrp(), shell_tty);
-	change_job_status(pid, status);
+        give_terminal_to(getpgrp(), shell_tty);
+        change_job_status(pid, status);
     }
 }
 
@@ -294,64 +295,64 @@ main(int ac, char *av[])
     jid = 0;
     list_init(&esh_plugin_list);
     list_init(&current_jobs);
-    
+
     /* Process command-line arguments. See getopt(3) */
     while ((opt = getopt(ac, av, "hp:")) > 0) {
         switch (opt) {
-	case 'h':
-	    usage(av[0]);
-	    break;
-            
-	case 'p':
-	    esh_plugin_load_from_directory(optarg);
-	    break;
+        case 'h':
+            usage(av[0]);
+            break;
+
+        case 'p':
+            esh_plugin_load_from_directory(optarg);
+            break;
         }
     }
-    
+
     esh_plugin_initialize(&shell);
     setpgid(0, 0);
     struct termios *shell_tty = esh_sys_tty_init();
     give_terminal_to(getpgrp(), shell_tty);
-    
+
     /* Read/eval loop. */
     for (;;) {
-	
+
         /* Do not output a prompt unless shell's stdin is a terminal */
         char * prompt = isatty(0) ? shell.build_prompt() : NULL;
         char * cmdline = shell.readline(prompt);
         free (prompt);
-        
+
         if (cmdline == NULL) { /* User typed EOF */
             break;
         }
-        
+
         struct esh_command_line * cline = shell.parse_command_line(cmdline);
         free (cmdline);
         if (cline == NULL) {                /* Error in command line */
             continue;
         }
-        
+
         if (list_empty(&cline->pipes)) {    /* User hit enter */
             esh_command_line_free(cline);
             continue;
         }
-        
+
         struct esh_pipeline *pipeline;
         pipeline = list_entry(list_begin(&cline->pipes), struct esh_pipeline, elem);
-        
+
         struct esh_command *commands;
         commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
         //esh_command_print(command);
-        
+
         int command_type = process_type(commands->argv[0]);
-        
+
         if (command_type == 1) {
             exit(EXIT_SUCCESS);
         }
-        
+
         // jobs
         else if (command_type == 2) {
-	    
+
             char *statusStrings[] = {"Foreground","Running","Stopped", "Needs Terminal"};
             struct list_elem *e;
             for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
@@ -360,224 +361,244 @@ main(int ac, char *av[])
                 print_single_job(pipeline);
             }
         }
-        
+
         // fg, bg, kill, stop
         else if (command_type == 3 || command_type == 4 || command_type == 5 || command_type == 6) {
-            
+
             if (!list_empty(&current_jobs)) {
-                
+
                 int jobid_arg = -1;
-                
+
                 if (commands->argv[1] == NULL) {
                     struct list_elem *e = list_back(&current_jobs);
                     struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
                     jobid_arg = pipeline->jid;
                 }
 
-		else {
+                else {
 
-		    if (strncmp(commands->argv[1], "%", 1) == 0) {
+                    if (strncmp(commands->argv[1], "%", 1) == 0) {
                         char *temp = (char*) malloc(5);
                         strcpy(temp, commands->argv[1]+1);
                         jobid_arg = atoi(temp);
                         free(temp);
                     }
-		    
-		    else
+
+                    else {
                         jobid_arg = atoi(commands->argv[1]);
+                    }
                 }
-                
+
                 struct esh_pipeline *pipeline;
                 pipeline = get_job_from_jid(jobid_arg);
-                
+
                 // fg
                 if (command_type == 3) {
-                    
+
                     esh_signal_block(SIGCHLD);
                     pipeline->status = FOREGROUND;
                     print_single_job(pipeline);
                     give_terminal_to(pipeline->pgrp, shell_tty);
-                    
-                    if (kill (-pipeline->pgrp, SIGCONT) < 0)
+
+                    if (kill (-pipeline->pgrp, SIGCONT) < 0) {
                         esh_sys_fatal_error("fg error: kill SIGCONT");
-                    
+                    }
+
                     wait_for_job(cline, pipeline, shell_tty);
                     esh_signal_unblock(SIGCHLD);
                 }
-                
+
                 // bg
                 if (command_type == 4) {
 
-		    pipeline->status = BACKGROUND;                    
+                    pipeline->status = BACKGROUND;
 
-		    if (kill(-pipeline->pgrp, SIGCONT) < 0)
+                    if (kill(-pipeline->pgrp, SIGCONT) < 0) {
                         esh_sys_fatal_error("SIGCONT Error");
+                    }
 
-		    print_job_commands(current_jobs);
+                    print_job_commands(current_jobs);
                     printf("\n");
                 }
-                
+
                 // kill
                 else if (command_type == 5) {
-                    if (kill(-pipeline->pgrp, SIGKILL) < 0)
+                    if (kill(-pipeline->pgrp, SIGKILL) < 0) {
                         esh_sys_fatal_error("SIGKILL Error");
+                    }
                 }
-                
+
                 // stop
                 else if (command_type == 6) {
-                    if (kill(-pipeline->pgrp, SIGSTOP) < 0)
+                    if (kill(-pipeline->pgrp, SIGSTOP) < 0) {
                         esh_sys_fatal_error("SIGSTOP Error");
+                    }
                 }
             }
         }
-        
+
         else {
-            
+
             /*
              * Don't think this is pipeline friendly.
              */
-            
+
             esh_signal_sethandler(SIGCHLD, child_handler);
-            
+
             jid++;
-            if (list_empty(&current_jobs))
+            if (list_empty(&current_jobs)) {
                 jid = 1;
-	    
+            }
+
             pipeline->jid = jid;
             pipeline->pgrp = -1;
             pid_t pid;
-	    
-	    // pipes
-	    int oldPipe[2], newPipe[2];
+
+            // pipes
+            int oldPipe[2], newPipe[2];
             bool isPiped = false;
-            
-            if (list_size(&pipeline->commands) > 1)
+
+            if (list_size(&pipeline->commands) > 1) {
                 isPiped = true;
-            
+            }
+
             struct list_elem *e;
             for (e = list_begin(&pipeline->commands); e != list_end(&pipeline->commands); e = list_next(e)) {
-		
+
                 struct esh_command *command = list_entry(e, struct esh_command, elem);
-                
+
                 //esh_command_print(command);
-		
-		if(isPiped && list_next(e) != list_tail(&pipeline->commands))
-		    pipe(newPipe);
-                
+
+                if(isPiped && list_next(e) != list_tail(&pipeline->commands)) {
+                    pipe(newPipe);
+                }
+
                 esh_signal_block(SIGCHLD);
                 pid = fork();
-                
+
                 // child
                 if (pid == 0) {
-		    
+
                     pid = getpid();
                     command->pid = pid;
-                    
-                    if (pipeline->pgrp == -1)
+
+                    if (pipeline->pgrp == -1) {
                         pipeline->pgrp = pid;
-                    
-                    if (setpgid(pid, pipeline->pgrp) < 0)
+                    }
+
+                    if (setpgid(pid, pipeline->pgrp) < 0) {
                         esh_sys_fatal_error("Error Setting Process Group");
-                    
+                    }
+
                     if (!pipeline->bg_job) {
                         give_terminal_to(pipeline->pgrp, shell_tty);
                         pipeline->status = FOREGROUND;
                     }
 
-		    else
+                    else {
                         pipeline->status = BACKGROUND;
-		    
-		    if (isPiped && e != list_begin(&pipeline->commands)) {
-			// closing and duplicating old pipe
-			close(oldPipe[1]);
-			dup2(oldPipe[0], 0);
-			close(oldPipe[0]);
-		    }
-                    
-		    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
+                    }
+
+                    if (isPiped && e != list_begin(&pipeline->commands)) {
+                        // closing and duplicating old pipe
+                        close(oldPipe[1]);
+                        dup2(oldPipe[0], 0);
+                        close(oldPipe[0]);
+                    }
+
+                    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
                         // closing and duplicating new pipe
-			close(newPipe[0]);
-			dup2(newPipe[1], 1);
-			close(newPipe[1]);
-		    }
-		    
+                        close(newPipe[0]);
+                        dup2(newPipe[1], 1);
+                        close(newPipe[1]);
+                    }
+
                     if (command->iored_input != NULL) {
                         int in_fd = open(command->iored_input, O_RDONLY);
-                        if (dup2(in_fd, 0) < 0)
+                        if (dup2(in_fd, 0) < 0) {
                             esh_sys_fatal_error("dup2 error");
+                        }
                         close(in_fd);
                     }
-                    
+
                     if (command->iored_output != NULL) {
                         int out_fd;
-                        if (command->append_to_output)
+                        if (command->append_to_output) {
                             out_fd = open(command->iored_output, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                        }
 
-                        else 
+                        else {
                             out_fd = open(command->iored_output, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                        }
 
-                        if (dup2(out_fd, 1) < 0) 
+                        if (dup2(out_fd, 1) < 0) {
                             esh_sys_fatal_error("dup2 error");
+                        }
 
                         close(out_fd);
                     }
-                    
-                    if (execvp(command->argv[0], command->argv) < 0)
+
+                    if (execvp(command->argv[0], command->argv) < 0) {
                         esh_sys_fatal_error("Exec Error");
+                    }
                 }
-                
-                else if (pid < 0)
+
+                else if (pid < 0) {
                     esh_sys_fatal_error("Fork Error");
+                }
 
                 // parent
                 else {
-		    
-                    if (pipeline->pgrp == -1)
+
+                    if (pipeline->pgrp == -1) {
                         pipeline->pgrp = pid;
-                    
-                    if (setpgid(pid, pipeline->pgrp) < 0)
+                    }
+
+                    if (setpgid(pid, pipeline->pgrp) < 0) {
                         esh_sys_fatal_error("Error Setting Process Group");
-					
-		    if (isPiped && e != list_begin(&pipeline->commands)) {
+                    }
+
+                    if (isPiped && e != list_begin(&pipeline->commands)) {
                         // closing old pipes
-			close(oldPipe[0]);
-			close(oldPipe[1]);
-		    }
-		    
-		    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
+                        close(oldPipe[0]);
+                        close(oldPipe[1]);
+                    }
+
+                    if (isPiped && list_next(e) != list_tail(&pipeline->commands)) {
                         // setting oldPipe to newPipe
-			oldPipe[0] = newPipe[0];
-			oldPipe[1] = newPipe[1];
-		    }
-                    
+                        oldPipe[0] = newPipe[0];
+                        oldPipe[1] = newPipe[1];
+                    }
+
                     if (isPiped && list_next(e) == list_tail(&pipeline->commands)) {
                         close(oldPipe[0]);
-			close(oldPipe[1]);
+                        close(oldPipe[1]);
                         close(newPipe[0]);
-			close(newPipe[1]);
+                        close(newPipe[1]);
                     }
                 }
             }
-            
+
             if (pipeline->bg_job) {
                 pipeline->status = BACKGROUND;
                 printf("[%d] %d\n", pipeline->jid, pipeline->pgrp);
             }
-            
+
             e = list_pop_front(&cline->pipes);
             list_push_back(&current_jobs, e);
-            
-            if (!pipeline->bg_job)
+
+            if (!pipeline->bg_job) {
                 wait_for_job(cline, pipeline, shell_tty);
-            
+            }
+
             esh_signal_unblock(SIGCHLD);
         }
-        
+
         esh_command_line_free(cline);
     }
-    
+
     return 0;
-    
+
 }
 
 /*
@@ -589,26 +610,26 @@ int process_type(char *command)
     if (!strcmp(command, "exit")) {
         return 1;
     }
-    
+
     else if (!strcmp(command, "jobs")) {
         return 2;
     }
-    
+
     else if (!strcmp(command, "fg")) {
         return 3;
     }
-    
+
     else if (!strcmp(command, "bg")) {
         return 4;
     }
-    
+
     else if (!strcmp(command, "kill")) {
         return 5;
     }
-    
+
     else if (!strcmp(command, "stop")) {
         return 6;
     }
-    
+
     return 0;
 }
