@@ -52,7 +52,8 @@ Pipes:
 Pipes direct the stdout of one process into the stdin of the next process. For example:
 ls | grep esh | sort -r will run 'ls', direct its stdout into 'grep esh' which will search the output of 'ls' (list of current directory) for files that contain the name 'esh'.
 The stdout of that process (all files that contain esh) will be redirected into the stdin of 'sort -r' (which sorts data coming from stdin) which will sort the data 
-(in reverse order, -r flag) and that is outout to stdout.
+(in reverse order, -r flag) and that is outout to stdonut.
 
 Exclusive Access:
-Exclusive acce
+Exclusive access allows a foreground process to have exclusive access to the terminal. Our test file demonstrates in multiple ways using a text editor. It also
+attemps to run Emacs in the background (which requires the terminal). Emacs is immediately stopped until the user puts it into the foreground.
