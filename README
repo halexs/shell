@@ -57,3 +57,20 @@ The stdout of that process (all files that contain esh) will be redirected into 
 Exclusive Access:
 Exclusive access allows a foreground process to have exclusive access to the terminal. Our test file demonstrates in multiple ways using a text editor. It also
 attemps to run Emacs in the background (which requires the terminal). Emacs is immediately stopped until the user puts it into the foreground.
+
+List of Plugins Implemented
+---------------------------
+Plugin: pokedex
+Author: group 253
+
+Plugin: dice_roll
+Author: group 265
+
+Plugin: answer
+Author: group 265
+
+Plugin: pulp
+Author: group 265
+
+Plugin: CtoF
+Author: group 241
