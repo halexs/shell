@@ -1,0 +1,9 @@
+the 'pokedex' esh plug-in
+-----------------------------
+
+The 'pokedex' plug-in implements the 'pokedex' built in command.
+This command is run with one argument, an int between 1 and 151.
+It will display the name of the pokemon from the first generation.
+
+--
+Written by Joshua Rush (jdrush89@vt.edu) Fall 2012 for CS 3214

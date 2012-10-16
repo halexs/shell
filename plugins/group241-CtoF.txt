@@ -1,0 +1,2 @@
+Plugin Name: CtoF
+Functionality: This plugin takes a number (degrees fahrenheit) anc converts it to degrees Celcious. If no input is given it prints out proper usage information. If inproper information is entered the default of 32.000000 F is printed.

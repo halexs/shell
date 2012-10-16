@@ -1,0 +1,9 @@
+About:
+	This plugin tells you the answer to life, the universe, and everything
+
+Created by:
+	dmatt90 and cjchew
+
+Execution:
+	to run this plugin type 'answers'
+
