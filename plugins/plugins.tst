@@ -3,5 +3,4 @@
 1 group265_answer_test.py
 1 group265_dice_test.py
 1 group265_pulp_test.py
-1 fortune_cookie_test.py
 1 group241-CtoF_test.py
