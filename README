@@ -5,11 +5,11 @@ K Alnajar - kar
 
 How to execute the shell
 ------------------------
-After using the Make command, use the command ./esh to run the shell. 
+After using the Make command, use the command ./esh to run the shell. Pass '-p <directory>' as an argument to run custom plugins.
 
 Important Notes
 ---------------
-Our shell does not support plugins at this time.
+There are no critical notes about the shell. All basic and advanced tests pass without issue.
 
 Description of Base Functionality
 ---------------------------------

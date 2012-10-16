@@ -216,7 +216,7 @@ static void change_job_status(pid_t pid, int status)
     }
 
     else if (pid < 0) {
-        esh_sys_fatal_error("Error in wait");
+        esh_sys_fatal_error("Error in wait ");
     }
 }
 
@@ -343,9 +343,20 @@ main(int ac, char *av[])
         struct esh_command *commands;
         commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
         //esh_command_print(command);
-
-        int command_type = process_type(commands->argv[0]);
-
+		
+		int command_type = process_type(commands->argv[0]);
+		
+		//PLUGIN CHECK
+		struct list_elem * e = list_begin(&esh_plugin_list);
+		for (; e != list_end(&esh_plugin_list); e = list_next(e)) {
+			struct esh_plugin *plugin = list_entry(e, struct esh_plugin, elem);
+			
+			if (plugin->process_builtin(commands)) {
+				command_type = -1;
+				continue;
+			}
+		}
+        
         if (command_type == 1) {
             exit(EXIT_SUCCESS);
         }
@@ -401,7 +412,7 @@ main(int ac, char *av[])
                     give_terminal_to(pipeline->pgrp, shell_tty);
 
                     if (kill (-pipeline->pgrp, SIGCONT) < 0) {
-                        esh_sys_fatal_error("fg error: kill SIGCONT");
+                        esh_sys_fatal_error("fg error: kill SIGCONT ");
                     }
 
                     wait_for_job(cline, pipeline, shell_tty);
@@ -414,7 +425,7 @@ main(int ac, char *av[])
                     pipeline->status = BACKGROUND;
 
                     if (kill(-pipeline->pgrp, SIGCONT) < 0) {
-                        esh_sys_fatal_error("SIGCONT Error");
+                        esh_sys_fatal_error("SIGCONT Error ");
                     }
 
                     print_job_commands(current_jobs);
@@ -424,20 +435,20 @@ main(int ac, char *av[])
                 // kill
                 else if (command_type == 5) {
                     if (kill(-pipeline->pgrp, SIGKILL) < 0) {
-                        esh_sys_fatal_error("SIGKILL Error");
+                        esh_sys_fatal_error("SIGKILL Error ");
                     }
                 }
 
                 // stop
                 else if (command_type == 6) {
                     if (kill(-pipeline->pgrp, SIGSTOP) < 0) {
-                        esh_sys_fatal_error("SIGSTOP Error");
+                        esh_sys_fatal_error("SIGSTOP Error ");
                     }
                 }
             }
         }
 
-        else {
+        else if (command_type == 0) {
 
             /*
              * Don't think this is pipeline friendly.
@@ -487,7 +498,7 @@ main(int ac, char *av[])
                     }
 
                     if (setpgid(pid, pipeline->pgrp) < 0) {
-                        esh_sys_fatal_error("Error Setting Process Group");
+                        esh_sys_fatal_error("Error Setting Process Group ");
                     }
 
                     if (!pipeline->bg_job) {
@@ -516,7 +527,7 @@ main(int ac, char *av[])
                     if (command->iored_input != NULL) {
                         int in_fd = open(command->iored_input, O_RDONLY);
                         if (dup2(in_fd, 0) < 0) {
-                            esh_sys_fatal_error("dup2 error");
+                            esh_sys_fatal_error("dup2 error ");
                         }
                         close(in_fd);
                     }
@@ -532,19 +543,19 @@ main(int ac, char *av[])
                         }
 
                         if (dup2(out_fd, 1) < 0) {
-                            esh_sys_fatal_error("dup2 error");
+                            esh_sys_fatal_error("dup2 error ");
                         }
 
                         close(out_fd);
                     }
 
                     if (execvp(command->argv[0], command->argv) < 0) {
-                        esh_sys_fatal_error("Exec Error");
+                        esh_sys_fatal_error("Exec Error ");
                     }
                 }
 
                 else if (pid < 0) {
-                    esh_sys_fatal_error("Fork Error");
+                    esh_sys_fatal_error("Fork Error ");
                 }
 
                 // parent
@@ -555,7 +566,7 @@ main(int ac, char *av[])
                     }
 
                     if (setpgid(pid, pipeline->pgrp) < 0) {
-                        esh_sys_fatal_error("Error Setting Process Group");
+                        esh_sys_fatal_error("Error Setting Process Group ");
                     }
 
                     if (isPiped && e != list_begin(&pipeline->commands)) {
