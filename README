@@ -43,7 +43,7 @@ Ctrl-Z is initiated by the user and will send a SIGSTOP signal, stopping the job
 Description of Extended Functionality
 -------------------------------------
 
-I/O Redirection
+I/O Redirection:
 I/O redirection will change the stdin or stdout source from/to a file. 
 To redirect output, this is implemented using "process > out" to redirect "process" output to file "out".
 To redirect input, this is implemented using "process < in" to redirect "process" stdin from file "in".

@@ -309,6 +309,7 @@ main(int ac, char *av[])
         }
     }
 
+	esh_plugin_load_from_directory("plugins/");
     esh_plugin_initialize(&shell);
     setpgid(0, 0);
     struct termios *shell_tty = esh_sys_tty_init();
