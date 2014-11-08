@@ -2,9 +2,6 @@
  * esh - the 'extensible' shell.
  *
  * Utility functions for system calls.
- *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
  */
 
 #include <termios.h>
@@ -20,10 +17,10 @@
 
 #include "esh-sys-utils.h"
 
-static const char rcsid [] = "$Id: esh-sys-utils.c,v 1.4 2011/01/21 20:13:06 cs3214 Exp $";
+static const char rcsid [] = "$Id: esh-sys-utils.c,v 1.4 2011/01/21 20:13:06 Exp $";
 
 /* Utility function for esh_sys_fatal_error and esh_sys_error */
-static void 
+static void
 vesh_sys_error(char *fmt, va_list ap)
 {
     char errmsg[1024];
@@ -34,8 +31,8 @@ vesh_sys_error(char *fmt, va_list ap)
 }
 
 /* Print information about the last syscall error */
-void 
-esh_sys_error(char *fmt, ...) 
+void
+esh_sys_error(char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -45,7 +42,7 @@ esh_sys_error(char *fmt, ...)
 
 /* Print information about the last syscall error and then exit */
 void
-esh_sys_fatal_error(char *fmt, ...) 
+esh_sys_fatal_error(char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -75,7 +72,7 @@ esh_sys_tty_init(void)
 
 /* Save current terminal settings.
  * This function is used when a job is suspended.*/
-void 
+void
 esh_sys_tty_save(struct termios *saved_tty_state)
 {
     int rc = tcgetattr(terminal_fd, saved_tty_state);
@@ -94,7 +91,7 @@ esh_sys_tty_restore(struct termios *saved_tty_state)
 }
 
 /* Get a file descriptor that refers to controlling terminal */
-int 
+int
 esh_sys_tty_getfd(void)
 {
     assert(terminal_fd != -1 || !!!"esh_sys_tty_init() must be called");
@@ -102,7 +99,7 @@ esh_sys_tty_getfd(void)
 }
 
 /* Return true if this signal is blocked */
-bool 
+bool
 esh_signal_is_blocked(int sig)
 {
     sigset_t mask;
@@ -125,14 +122,14 @@ __mask_signal(int sig, int how)
 }
 
 /* Block a signal. Returns true it was blocked before */
-bool 
+bool
 esh_signal_block(int sig)
 {
     return __mask_signal(sig, SIG_BLOCK);
 }
 
 /* Unblock a signal. Returns true it was blocked before */
-bool 
+bool
 esh_signal_unblock(int sig)
 {
     return __mask_signal(sig, SIG_UNBLOCK);

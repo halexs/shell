@@ -1,14 +1,11 @@
 /*
  * Tokens for esh.
- *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
  */
 %{
 #include <string.h>
 
-/* lex.yy.c uses 'ECHO;' which is in termbits.h defined as 0x10 
- * undefine this to avoid 'useless statement' warning. 
+/* lex.yy.c uses 'ECHO;' which is in termbits.h defined as 0x10
+ * undefine this to avoid 'useless statement' warning.
  */
 #ifdef ECHO
 #undef ECHO

@@ -1,16 +1,13 @@
 /*
  * esh - the 'extensible' shell.
- * 
- * Utility functions for system calls.
  *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
+ * Utility functions for system calls.
  */
 
 #include <stdbool.h>
 #include <signal.h>
 
-/* Print message to stderr, followed by information about current error. 
+/* Print message to stderr, followed by information about current error.
  * Use like 'printf' */
 void esh_sys_error(char *fmt, ...);
 void esh_sys_fatal_error(char *fmt, ...);
@@ -18,7 +15,7 @@ void esh_sys_fatal_error(char *fmt, ...);
 /* Get a file descriptor that refers to controlling terminal */
 int esh_sys_tty_getfd(void);
 
-/* Initialize tty support.  
+/* Initialize tty support.
  * Return pointer to static structure that saves initial state.
  * Restore this state via esh_sys_tty_restore() whenever the shell
  * takes back control of the terminal.

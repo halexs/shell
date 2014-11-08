@@ -1,10 +1,7 @@
 /*
  * esh - the 'extensible' shell.
  *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
- * 
- * $Id: esh.h,v 1.4 2011/03/29 15:46:28 cs3214 Exp $
+ * $Id: esh.h,v 1.4 2011/03/29 15:46:28 Exp $
  */
 
 #include <stdbool.h>
@@ -19,7 +16,7 @@ struct esh_pipeline;
 struct esh_command_line;
 
 /*
- * A esh_shell object allows plugins to access services and information. 
+ * A esh_shell object allows plugins to access services and information.
  * The shell object should support the following operations.
  */
 struct esh_shell {
@@ -46,7 +43,7 @@ struct esh_shell {
     struct esh_command_line * (* parse_command_line) (char *);
 };
 
-/* 
+/*
  * Modules must define a esh_plugin instance named 'esh_module.'
  * Each of the following members is optional.
  * esh will call its 'init' functions upon successful load.
@@ -72,7 +69,7 @@ struct esh_plugin {
      * A plugin may change it. */
     bool (* process_raw_cmdline)(char **);
 
-    /* A given pipeline of commands 
+    /* A given pipeline of commands
      * A plugin may change it. */
     bool (* process_pipeline)(struct esh_pipeline *);
 
@@ -80,12 +77,12 @@ struct esh_plugin {
      * command and return true. */
     bool (* process_builtin)(struct esh_command *);
 
-    /* Manufacture part of a prompt.  Memory must be allocated via malloc(). 
+    /* Manufacture part of a prompt.  Memory must be allocated via malloc().
      * If no plugin implements this, the shell will provide a default prompt. */
     char * (* make_prompt)(void);
 
     /* The process or processes that are part of a new pipeline
-     * have been forked.  
+     * have been forked.
      * The jid and pgid fields of the pipeline and the pid fields
      * of all commands in the pipeline are set.
      * SIGCHLD is blocked.
@@ -93,7 +90,7 @@ struct esh_plugin {
     void (* pipeline_forked)(struct esh_pipeline *);
 
     /* Notify the plugin about a child's status change.
-     * 'waitstatus' is the value returned by waitpid(2) 
+     * 'waitstatus' is the value returned by waitpid(2)
      *
      * May be called from SIGCHLD handler.
      * The status of the associated pipeline has not yet been
@@ -111,7 +108,7 @@ struct esh_command_line {
     /* Add additional fields here if needed. */
 };
 
-enum job_status  { 
+enum job_status  {
     FOREGROUND,     /* job is running in foreground.  Only one job can be
                        in the foreground state. */
     BACKGROUND,     /* job is running in background */
@@ -120,7 +117,7 @@ enum job_status  {
                        and requires exclusive terminal access */
 };
 
-/* A pipeline is a list of one or more commands. 
+/* A pipeline is a list of one or more commands.
  * For the purposes of job control, a pipeline forms one job.
  */
 struct esh_pipeline {
@@ -135,8 +132,8 @@ struct esh_pipeline {
 
     int     jid;             /* Job id. */
     pid_t   pgrp;            /* Process group. */
-    enum job_status status;  /* Job status. */ 
-    struct termios saved_tty_state;  /* The state of the terminal when this job was 
+    enum job_status status;  /* Job status. */
+    struct termios saved_tty_state;  /* The state of the terminal when this job was
                                         stopped after having been in foreground */
 
     /* Add additional fields here if needed. */
@@ -154,7 +151,7 @@ struct esh_command {
     struct list_elem elem;   /* Link element to link commands in pipeline. */
 
     pid_t   pid;             /* Process id. */
-    struct esh_pipeline * pipeline; 
+    struct esh_pipeline * pipeline;
                               /* The pipeline of which this job is a part. */
 
     /* Add additional fields here if needed. */
@@ -163,9 +160,9 @@ struct esh_command {
 /** ----------------------------------------------------------- */
 
 /* Create new command structure and initialize it */
-struct esh_command * esh_command_create(char ** argv, 
-                   char *iored_input, 
-                   char *iored_output, 
+struct esh_command * esh_command_create(char ** argv,
+                   char *iored_input,
+                   char *iored_output,
                    bool append_to_output);
 
 /* Create a new pipeline containing only one command */

@@ -1,13 +1,5 @@
 /*
  * esh - the 'pluggable' shell.
- *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
- *
- * This is based on an assignment I did in 1993 as an undergraduate
- * student at Technische Universitaet Berlin.
- *
- * Known bugs: leaks memory when parse errors occur.
  */
 %{
 #include <stdio.h>
@@ -39,7 +31,7 @@ struct cmd_helper {
 
 /* Initialize cmd_helper and, optionally, set first argv */
 static void
-init_cmd(struct cmd_helper *cmd, char *firstcmd, 
+init_cmd(struct cmd_helper *cmd, char *firstcmd,
          char *iored_input, char *iored_output, bool append_to_output)
 {
     obstack_init(&cmd->words);
@@ -57,7 +49,7 @@ static void p_error(char *msg);
 /* Convert cmd_helper to esh_command.
  * Ensures NULL-terminated argv[] array
  */
-static struct esh_command * 
+static struct esh_command *
 make_esh_command(struct cmd_helper *cmd)
 {
     obstack_ptr_grow(&cmd->words, NULL);
@@ -69,7 +61,7 @@ make_esh_command(struct cmd_helper *cmd)
 
     if (*argv == NULL) {
         free(argv);
-        return NULL; 
+        return NULL;
     }
 
     return esh_command_create(argv,
@@ -102,35 +94,35 @@ static void yyunput (int c,char *buf_ptr  ) __attribute__((unused));
 
 /* Terminals */
 %token <word> WORD
-%token GREATER_GREATER 
+%token GREATER_GREATER
 
 %%
 cmd_line: cmd_list { cmdline_complete($1); }
 
 cmd_list:	/* Null Command */ { $$ = esh_command_line_create_empty(); }
-|		pipeline { 
+|		pipeline {
             esh_pipeline_finish($1);
             $$ = esh_command_line_create($1);
-        } 
+        }
 |		cmd_list ';'
 |		cmd_list '&' {
             $$ = $1;
             struct esh_pipeline * last;
-            last = list_entry(list_back(&$1->pipes), 
+            last = list_entry(list_back(&$1->pipes),
                               struct esh_pipeline, elem);
             last->bg_job = true;
         }
-|		cmd_list ';' pipeline	{ 
+|		cmd_list ';' pipeline	{
             esh_pipeline_finish($3);
             $$ = $1;
             list_push_back(&$$->pipes, &$3->elem);
         }
-|		cmd_list '&' pipeline	{ 
+|		cmd_list '&' pipeline	{
             esh_pipeline_finish($3);
             $$ = $1;
 
             struct esh_pipeline * last;
-            last = list_entry(list_back(&$1->pipes), 
+            last = list_entry(list_back(&$1->pipes),
                               struct esh_pipeline, elem);
             last->bg_job = true;
 
@@ -145,7 +137,7 @@ pipeline: command {
 |		pipeline '|' command {
 		    /* Error: 'ls >x | wc' */
             struct esh_command * last;
-            last = list_entry(list_back(&$1->commands), 
+            last = list_entry(list_back(&$1->commands),
                               struct esh_command, elem);
 		    if (last->iored_output) { p_error(AMBOUT); YYABORT; }
 
@@ -162,10 +154,10 @@ pipeline: command {
 |		'|' error 	   { p_error(INVNUL); YYABORT; }
 |		pipeline '|' error { p_error(INVNUL); YYABORT; }
 
-command:   WORD { 
+command:   WORD {
             init_cmd(&$$, $1, NULL, NULL, false);
         }
-|		input   
+|		input
 |		output
 |		command WORD {
             $$ = $1;
@@ -175,27 +167,27 @@ command:   WORD {
             obstack_free(&$2.words, NULL);
             /* Error: ambiguous redirect 'a <b <c' */
             if($1.iored_input)   { p_error(AMBINP); YYABORT; }
-            $$ = $1; 
+            $$ = $1;
             $$.iored_input = $2.iored_input;
 		}
 |		command output {
             obstack_free(&$2.words, NULL);
             /* Error: ambiguous redirect 'a >b >c' */
             if ($1.iored_output) { p_error(AMBOUT); YYABORT; }
-            $$ = $1; 
+            $$ = $1;
             $$.iored_output = $2.iored_output;
             $$.append_to_output = $2.append_to_output;
 		}
 
-input:	'<' WORD { 
+input:	'<' WORD {
             init_cmd(&$$, NULL, $2, NULL, false);
         }
 |		'<' error	  { p_error(MISRED); YYABORT; }
 
-output:	'>' WORD { 
+output:	'>' WORD {
             init_cmd(&$$, NULL, NULL, $2, false);
         }
-|		GREATER_GREATER WORD { 
+|		GREATER_GREATER WORD {
             init_cmd(&$$, NULL, NULL, $2, true);
         }
 		/* Error: missing redirect */
@@ -214,16 +206,16 @@ static char * inputline;    /* currently processed input line */
 #include "lex.yy.c"
 
 static void
-p_error(char *msg) 
-{ 
+p_error(char *msg)
+{
     /* print error */
-    fprintf(stderr, "%s\n", msg); 
+    fprintf(stderr, "%s\n", msg);
 }
 
 extern int yyparse (void);
 
 /* do not use default error handling since errors are handled above. */
-void 
+void
 yyerror(const char *msg) { }
 
 static struct esh_command_line * commandline;
@@ -232,7 +224,7 @@ static void cmdline_complete(struct esh_command_line *cline)
     commandline = cline;
 }
 
-/* 
+/*
  * parse a commandline.
  */
 struct esh_command_line *

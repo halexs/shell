@@ -1,8 +1,6 @@
 /*
  * esh - the 'pluggable' shell.
  *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
  */
 #include <stdio.h>
 #include <readline/readline.h>
@@ -166,20 +164,20 @@ static void print_single_job(struct esh_pipeline *pipeline)
 static void change_job_status(pid_t pid, int status)
 {
     if (pid > 0) {
-	
+
         struct list_elem *e;
         for (e = list_begin(&current_jobs); e != list_end(&current_jobs); e = list_next(e)) {
-	    
+
             struct esh_pipeline *pipeline = list_entry(e, struct esh_pipeline, elem);
 
             if (pipeline->pgrp == pid) {
-		
+
                 if (WIFSTOPPED(status)) {
-		    
+
                     if (WSTOPSIG(status) == 22) {
                         pipeline->status = STOPPED;
                     }
-		    
+
                     else {
                         pipeline->status = STOPPED;
                         printf("\n[%d]+ Stopped      ", pipeline->jid);
@@ -344,20 +342,20 @@ main(int ac, char *av[])
         struct esh_command *commands;
         commands = list_entry(list_begin(&pipeline->commands), struct esh_command, elem);
         //esh_command_print(command);
-		
+
 	int command_type = process_type(commands->argv[0]);
-		
+
 	//PLUGIN CHECK
 	struct list_elem * e = list_begin(&esh_plugin_list);
 	for (; e != list_end(&esh_plugin_list); e = list_next(e)) {
 	    struct esh_plugin *plugin = list_entry(e, struct esh_plugin, elem);
-			
+
 	    if (plugin->process_builtin(commands)) {
 		command_type = -1;
 		continue;
 	    }
 	}
-        
+
         if (command_type == 1) {
             exit(EXIT_SUCCESS);
         }

@@ -1,9 +1,6 @@
 /*
  * esh-utils.c
  * A set of utility routines to manage esh objects.
- *
- * Developed by Godmar Back for CS 3214 Fall 2009
- * Virginia Tech.
  */
 #include <stdio.h>
 #include <sys/types.h>
@@ -13,7 +10,7 @@
 
 #include "esh.h"
 
-static const char rcsid [] = "$Id: esh-utils.c,v 1.5 2011/03/29 15:46:28 cs3214 Exp $";
+static const char rcsid [] = "$Id: esh-utils.c,v 1.5 2011/03/29 15:46:28 Exp $";
 
 /* List of loaded plugins */
 struct list esh_plugin_list;
